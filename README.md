@@ -7,22 +7,15 @@ Lark (飛書) MCP Server - 讓 Claude 直接操作 Lark 文件、Wiki、待辦�
 | 項目 | 值 |
 |------|-----|
 | 名稱 | lark-mcp |
-| 版本 | 2.0.0 |
+| 版本 | 2.1.0 |
+| 執行環境 | Bun |
 | 認證方式 | OAuth 2.0 (User Access Token) |
 | Token 儲存 | `~/.lark-token.json` |
 
 ## 安裝
 
 ```bash
-npm install
-npm run build
-```
-
-## 環境變數
-
-```bash
-export LARK_APP_ID="your_app_id"
-export LARK_APP_SECRET="your_app_secret"
+bun install
 ```
 
 ## Claude Code 設定
@@ -33,8 +26,8 @@ export LARK_APP_SECRET="your_app_secret"
 {
   "mcpServers": {
     "lark": {
-      "command": "node",
-      "args": ["/path/to/lark-wiki/dist/index.js"],
+      "command": "bun",
+      "args": ["run", "/path/to/lark-mcp/src/index.ts"],
       "env": {
         "LARK_APP_ID": "your_app_id",
         "LARK_APP_SECRET": "your_app_secret"
@@ -69,9 +62,11 @@ export LARK_APP_SECRET="your_app_secret"
 | `wiki_spaces` | 列出所有 Wiki 空間 |
 | `wiki_list_nodes` | 列出 Wiki 空間的節點 |
 | `wiki_read` | 讀取 Wiki 內容（回傳 Markdown）|
+| `wiki_update` | 更新 Wiki 內容（清空重寫）|
 | `wiki_prepend` | 在 Wiki 頂部插入內容 |
 | `wiki_append` | 在 Wiki 底部追加內容 |
 | `wiki_insert_blocks` | 在指定位置插入內容 |
+| `wiki_delete_blocks` | 刪除指定範圍的區塊 |
 | `wiki_search` | 搜尋 Wiki 空間 |
 
 ### 文件工具
@@ -83,6 +78,7 @@ export LARK_APP_SECRET="your_app_secret"
 | `doc_update` | 更新文件內容（清空重寫）|
 | `doc_delete` | 刪除文件 |
 | `doc_insert_blocks` | 在指定位置插入內容 |
+| `doc_delete_blocks` | 刪除指定範圍的區塊 |
 | `doc_search` | 搜尋文件 |
 | `drive_list` | 列出雲端硬碟檔案 |
 | `search_all` | 全域搜尋 |
@@ -137,6 +133,15 @@ export LARK_APP_SECRET="your_app_secret"
 |------|------|------|------|
 | wiki_token | string | 是 | Wiki 節點 Token |
 
+#### `wiki_update`
+
+| 參數 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| wiki_token | string | 是 | Wiki 節點 Token |
+| content | string | 是 | 新的 Markdown 內容 |
+| start_index | number | | 起始位置（範圍更新時使用）|
+| end_index | number | | 結束位置（範圍更新時使用）|
+
 #### `wiki_prepend` / `wiki_append`
 
 | 參數 | 類型 | 必填 | 說明 |
@@ -151,6 +156,14 @@ export LARK_APP_SECRET="your_app_secret"
 | wiki_token | string | 是 | Wiki 節點 Token |
 | content | string | 是 | Markdown 內容 |
 | index | number | | 插入位置（預設 0）|
+
+#### `wiki_delete_blocks`
+
+| 參數 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| wiki_token | string | 是 | Wiki 節點 Token |
+| start_index | number | 是 | 起始位置（從 0 開始）|
+| end_index | number | 是 | 結束位置（不包含）|
 
 #### `wiki_search`
 
@@ -181,6 +194,8 @@ export LARK_APP_SECRET="your_app_secret"
 |------|------|------|------|
 | document_id | string | 是 | 文件 ID |
 | content | string | 是 | 新的 Markdown 內容 |
+| start_index | number | | 起始位置（範圍更新時使用）|
+| end_index | number | | 結束位置（範圍更新時使用）|
 
 #### `doc_delete`
 
@@ -195,6 +210,14 @@ export LARK_APP_SECRET="your_app_secret"
 | document_id | string | 是 | 文件 ID |
 | content | string | 是 | Markdown 內容 |
 | index | number | | 插入位置（預設 0）|
+
+#### `doc_delete_blocks`
+
+| 參數 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| document_id | string | 是 | 文件 ID |
+| start_index | number | 是 | 起始位置（從 0 開始）|
+| end_index | number | 是 | 結束位置（不包含）|
 
 #### `doc_search`
 

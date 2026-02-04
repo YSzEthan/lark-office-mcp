@@ -87,7 +87,7 @@ async function handleAuthTool(
       }
 
       const token = await exchangeCodeForToken(code);
-      return success("✅ 授權成功！Token 已儲存到 ~/.lark-token.json", {
+      return success("授權成功！Token 已儲存到 ~/.lark-token.json", {
         expiresAt: new Date(token.expiresAt).toISOString(),
       });
     }
@@ -95,7 +95,7 @@ async function handleAuthTool(
     if (name === "lark_auth_url") {
       const url = getAuthorizationUrl();
       return success(
-        "🔗 請開啟以下連結進行授權：\n\n" +
+        "請開啟以下連結進行授權：\n\n" +
         `${url}\n\n` +
         "授權後複製網址中的 code 參數，使用 lark_auth 工具提交"
       );

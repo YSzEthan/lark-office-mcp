@@ -68,6 +68,32 @@ export const wikiTools = [
     },
   },
   {
+    name: "wiki_update",
+    description: "更新 Wiki 文件內容（可指定範圍更新或清空重寫）",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        wiki_token: {
+          type: "string",
+          description: "Wiki 節點 Token（必填）",
+        },
+        content: {
+          type: "string",
+          description: "新的 Markdown 內容",
+        },
+        start_index: {
+          type: "number",
+          description: "起始位置索引（可選，需與 end_index 同時使用）",
+        },
+        end_index: {
+          type: "number",
+          description: "結束位置索引（可選，不包含該位置）",
+        },
+      },
+      required: ["wiki_token", "content"],
+    },
+  },
+  {
     name: "wiki_insert_blocks",
     description: "批量插入內容區塊到指定位置",
     inputSchema: {
@@ -87,6 +113,28 @@ export const wikiTools = [
         },
       },
       required: ["wiki_token", "content"],
+    },
+  },
+  {
+    name: "wiki_delete_blocks",
+    description: "刪除 Wiki 文件指定範圍的區塊",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        wiki_token: {
+          type: "string",
+          description: "Wiki 節點 Token（必填）",
+        },
+        start_index: {
+          type: "number",
+          description: "起始位置索引（從 0 開始，必填）",
+        },
+        end_index: {
+          type: "number",
+          description: "結束位置索引（不包含，必填）",
+        },
+      },
+      required: ["wiki_token", "start_index", "end_index"],
     },
   },
   {
@@ -173,11 +221,26 @@ export async function handleWikiTool(
           args.content as string
         );
 
+      case "wiki_update":
+        return await wikiUpdate(
+          args.wiki_token as string,
+          args.content as string,
+          args.start_index as number | undefined,
+          args.end_index as number | undefined
+        );
+
       case "wiki_insert_blocks":
         return await wikiInsertBlocks(
           args.wiki_token as string,
           args.content as string,
           (args.index as number) ?? 0
+        );
+
+      case "wiki_delete_blocks":
+        return await wikiDeleteBlocks(
+          args.wiki_token as string,
+          args.start_index as number,
+          args.end_index as number
         );
 
       case "wiki_search":
@@ -219,7 +282,7 @@ async function wikiRead(wikiToken: string): Promise<ToolResponse> {
   const markdown = blocksToMarkdown(blocks);
 
   return success(
-    `✅ Wiki 讀取成功`,
+    `Wiki 讀取成功`,
     truncate(markdown)
   );
 }
@@ -245,7 +308,7 @@ async function wikiPrepend(
   await insertBlocks(node.objToken, rootBlockId, blocks, 0);
 
   return success(
-    `✅ 已在 Wiki 頂部插入 ${blocks.length} 個區塊`,
+    `已在 Wiki 頂部插入 ${blocks.length} 個區塊`,
     `Wiki URL: https://yjpo88r1gcti.jp.larksuite.com/wiki/${wikiToken}`
   );
 }
@@ -276,9 +339,81 @@ async function wikiAppend(
   await insertBlocks(node.objToken, rootBlockId, blocks, Math.max(0, insertIndex));
 
   return success(
-    `✅ 已在 Wiki 底部追加 ${blocks.length} 個區塊`,
+    `已在 Wiki 底部追加 ${blocks.length} 個區塊`,
     `Wiki URL: https://yjpo88r1gcti.jp.larksuite.com/wiki/${wikiToken}`
   );
+}
+
+/**
+ * 更新 Wiki 內容（可指定範圍更新或清空重寫）
+ */
+async function wikiUpdate(
+  wikiToken: string,
+  content: string,
+  startIndex?: number,
+  endIndex?: number
+): Promise<ToolResponse> {
+  if (!wikiToken) {
+    return error("缺少 wiki_token 參數");
+  }
+  if (!content) {
+    return error("缺少 content 參數");
+  }
+
+  const node = await getWikiNode(wikiToken);
+  const rootBlockId = await getDocumentRootBlockId(node.objToken);
+
+  // 判斷是範圍更新還是清空重寫
+  const isRangeUpdate = startIndex !== undefined && endIndex !== undefined;
+
+  if (isRangeUpdate) {
+    // 範圍更新：刪除指定範圍後插入新內容
+    if (startIndex < 0 || endIndex <= startIndex) {
+      return error("無效的範圍參數（end_index 必須大於 start_index）");
+    }
+
+    await larkRequest(`/docx/v1/documents/${node.objToken}/blocks/${rootBlockId}/children/batch_delete`, {
+      method: "DELETE",
+      body: {
+        document_revision_id: -1,
+        start_index: startIndex,
+        end_index: endIndex,
+      },
+    });
+
+    const blocks = markdownToBlocks(content);
+    await insertBlocks(node.objToken, rootBlockId, blocks, startIndex);
+
+    return success(
+      `Wiki 範圍更新成功，刪除 ${endIndex - startIndex} 個區塊，插入 ${blocks.length} 個區塊`,
+      `Wiki URL: https://yjpo88r1gcti.jp.larksuite.com/wiki/${wikiToken}`
+    );
+  } else {
+    // 清空重寫
+    const existingBlocks = await getDocumentBlocks(node.objToken);
+    const childBlockIds = existingBlocks
+      .filter((b) => b.parent_id === rootBlockId && b.block_id !== rootBlockId)
+      .map((b) => b.block_id);
+
+    if (childBlockIds.length > 0) {
+      await larkRequest(`/docx/v1/documents/${node.objToken}/blocks/${rootBlockId}/children/batch_delete`, {
+        method: "DELETE",
+        body: {
+          document_revision_id: -1,
+          start_index: 0,
+          end_index: childBlockIds.length,
+        },
+      });
+    }
+
+    const blocks = markdownToBlocks(content);
+    await insertBlocks(node.objToken, rootBlockId, blocks, 0);
+
+    return success(
+      `Wiki 更新成功，插入 ${blocks.length} 個區塊`,
+      `Wiki URL: https://yjpo88r1gcti.jp.larksuite.com/wiki/${wikiToken}`
+    );
+  }
 }
 
 /**
@@ -303,7 +438,43 @@ async function wikiInsertBlocks(
   await insertBlocks(node.objToken, rootBlockId, blocks, index);
 
   return success(
-    `✅ 已在位置 ${index} 插入 ${blocks.length} 個區塊`,
+    `已在位置 ${index} 插入 ${blocks.length} 個區塊`,
+    `Wiki URL: https://yjpo88r1gcti.jp.larksuite.com/wiki/${wikiToken}`
+  );
+}
+
+/**
+ * 刪除指定範圍的區塊
+ */
+async function wikiDeleteBlocks(
+  wikiToken: string,
+  startIndex: number,
+  endIndex: number
+): Promise<ToolResponse> {
+  if (!wikiToken) {
+    return error("缺少 wiki_token 參數");
+  }
+  if (startIndex === undefined || startIndex < 0) {
+    return error("缺少或無效的 start_index 參數");
+  }
+  if (endIndex === undefined || endIndex <= startIndex) {
+    return error("缺少或無效的 end_index 參數（必須大於 start_index）");
+  }
+
+  const node = await getWikiNode(wikiToken);
+  const rootBlockId = await getDocumentRootBlockId(node.objToken);
+
+  await larkRequest(`/docx/v1/documents/${node.objToken}/blocks/${rootBlockId}/children/batch_delete`, {
+    method: "DELETE",
+    body: {
+      document_revision_id: -1,
+      start_index: startIndex,
+      end_index: endIndex,
+    },
+  });
+
+  return success(
+    `已刪除位置 ${startIndex} 到 ${endIndex} 的區塊（共 ${endIndex - startIndex} 個）`,
     `Wiki URL: https://yjpo88r1gcti.jp.larksuite.com/wiki/${wikiToken}`
   );
 }
@@ -338,11 +509,11 @@ async function wikiSearch(
   );
 
   if (filtered.length === 0) {
-    return success(`🔍 搜尋 "${query}" 無結果`);
+    return success(`搜尋 "${query}" 無結果`);
   }
 
   const simplified = simplifyNodeList(filtered);
-  return success(`🔍 搜尋 "${query}" 找到 ${simplified.length} 個結果`, simplified);
+  return success(`搜尋 "${query}" 找到 ${simplified.length} 個結果`, simplified);
 }
 
 /**
@@ -372,7 +543,7 @@ async function wikiListNodes(
   }>(`/wiki/v2/spaces/${spaceId}/nodes`, { params });
 
   const simplified = simplifyNodeList(data.items || []);
-  return success(`📂 共 ${simplified.length} 個節點`, simplified);
+  return success(`共 ${simplified.length} 個節點`, simplified);
 }
 
 /**
@@ -396,7 +567,7 @@ async function wikiSpaces(): Promise<ToolResponse> {
     description: s.description,
   }));
 
-  return success(`📚 共 ${simplified.length} 個 Wiki 空間`, simplified);
+  return success(`共 ${simplified.length} 個 Wiki 空間`, simplified);
 }
 
 /**
@@ -426,7 +597,7 @@ async function searchAll(query: string): Promise<ToolResponse> {
   const files = data.files || [];
 
   if (files.length === 0) {
-    return success(`🔍 搜尋 "${query}" 無結果`);
+    return success(`搜尋 "${query}" 無結果`);
   }
 
   const simplified = files.map((f) => ({
@@ -436,5 +607,5 @@ async function searchAll(query: string): Promise<ToolResponse> {
     url: f.url,
   }));
 
-  return success(`🔍 搜尋 "${query}" 找到 ${simplified.length} 個結果`, simplified);
+  return success(`搜尋 "${query}" 找到 ${simplified.length} 個結果`, simplified);
 }

@@ -347,7 +347,7 @@ async function todoCreate(
     body,
   });
 
-  return success(`✅ 待辦事項建立成功`, {
+  return success(`待辦事項建立成功`, {
     id: data.task.guid,
     summary: data.task.summary,
   });
@@ -433,11 +433,11 @@ async function todoSearch(
   );
 
   if (filtered.length === 0) {
-    return success(`🔍 搜尋 "${query}" 無結果`);
+    return success(`搜尋 "${query}" 無結果`);
   }
 
   const simplified = simplifyTodoList(filtered);
-  return success(`🔍 搜尋 "${query}" 找到 ${simplified.length} 個待辦事項`, simplified);
+  return success(`搜尋 "${query}" 找到 ${simplified.length} 個待辦事項`, simplified);
 }
 
 /**
@@ -462,7 +462,7 @@ async function todoComplete(taskId: string): Promise<ToolResponse> {
     },
   });
 
-  return success(`✅ 待辦事項已完成`, { taskId });
+  return success(`待辦事項已完成`, { taskId });
 }
 
 /**
@@ -511,7 +511,7 @@ async function todoUpdate(
     },
   });
 
-  return success(`✅ 待辦事項已更新`, { taskId, updated: updateFields });
+  return success(`待辦事項已更新`, { taskId, updated: updateFields });
 }
 
 /**
@@ -526,7 +526,7 @@ async function todoDelete(taskId: string): Promise<ToolResponse> {
     method: "DELETE",
   });
 
-  return success(`✅ 待辦事項已刪除`, { taskId });
+  return success(`待辦事項已刪除`, { taskId });
 }
 
 // =============================================================================
@@ -551,7 +551,7 @@ async function tasklistCreate(name: string): Promise<ToolResponse> {
     body: { name },
   });
 
-  return success(`✅ 任務清單建立成功`, {
+  return success(`任務清單建立成功`, {
     id: data.tasklist.guid,
     name: data.tasklist.name,
   });
@@ -580,7 +580,7 @@ async function tasklistList(pageSize = 50): Promise<ToolResponse> {
     name: list.name,
   }));
 
-  return success(`📂 共 ${simplified.length} 個任務清單`, simplified);
+  return success(`共 ${simplified.length} 個任務清單`, simplified);
 }
 
 /**
@@ -600,7 +600,7 @@ async function tasklistGet(tasklistId: string): Promise<ToolResponse> {
     };
   }>(`/task/v2/tasklists/${tasklistId}`);
 
-  return success(`📂 任務清單詳情`, {
+  return success(`任務清單詳情`, {
     id: data.tasklist.guid,
     name: data.tasklist.name,
     creator: data.tasklist.creator?.name,
@@ -620,7 +620,7 @@ async function tasklistDelete(tasklistId: string): Promise<ToolResponse> {
     method: "DELETE",
   });
 
-  return success(`✅ 任務清單已刪除`, { tasklistId });
+  return success(`任務清單已刪除`, { tasklistId });
 }
 
 /**
@@ -642,7 +642,7 @@ async function tasklistAddTask(
     body: { tasklist_guid: tasklistId },
   });
 
-  return success(`✅ 待辦事項已加入任務清單`, { tasklistId, taskId });
+  return success(`待辦事項已加入任務清單`, { tasklistId, taskId });
 }
 
 /**
@@ -664,7 +664,7 @@ async function tasklistRemoveTask(
     body: { tasklist_guid: tasklistId },
   });
 
-  return success(`✅ 待辦事項已從任務清單移除`, { tasklistId, taskId });
+  return success(`待辦事項已從任務清單移除`, { tasklistId, taskId });
 }
 
 /**

@@ -36,7 +36,7 @@ export function success(message: string, data?: unknown): ToolResponse {
  * 建立錯誤回應
  */
 export function error(message: string, details?: unknown): ToolResponse {
-  let text = `❌ ${message}`;
+  let text = `${message}`;
 
   if (details) {
     if (details instanceof Error) {
