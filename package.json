@@ -1,0 +1,20 @@
+{
+  "name": "lark-mcp",
+  "version": "2.0.0",
+  "description": "Lark MCP Server - 精簡版 Wiki、文件、待辦事項工具",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc && node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}

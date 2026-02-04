@@ -120,7 +120,7 @@ export LARK_APP_SECRET="your_app_secret"
 
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
-| code | string | ✅ | 從授權頁面取得的授權碼 |
+| code | string | 是 | 從授權頁面取得的授權碼 |
 
 ### Wiki 工具
 
@@ -128,36 +128,36 @@ export LARK_APP_SECRET="your_app_secret"
 
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
-| space_id | string | ✅ | Wiki 空間 ID |
+| space_id | string | 是 | Wiki 空間 ID |
 | parent_node_token | string | | 父節點 Token（不填列出根節點）|
 
 #### `wiki_read`
 
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
-| wiki_token | string | ✅ | Wiki 節點 Token |
+| wiki_token | string | 是 | Wiki 節點 Token |
 
 #### `wiki_prepend` / `wiki_append`
 
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
-| wiki_token | string | ✅ | Wiki 節點 Token |
-| content | string | ✅ | Markdown 內容 |
+| wiki_token | string | 是 | Wiki 節點 Token |
+| content | string | 是 | Markdown 內容 |
 
 #### `wiki_insert_blocks`
 
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
-| wiki_token | string | ✅ | Wiki 節點 Token |
-| content | string | ✅ | Markdown 內容 |
+| wiki_token | string | 是 | Wiki 節點 Token |
+| content | string | 是 | Markdown 內容 |
 | index | number | | 插入位置（預設 0）|
 
 #### `wiki_search`
 
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
-| space_id | string | ✅ | Wiki 空間 ID |
-| query | string | ✅ | 搜尋關鍵字 |
+| space_id | string | 是 | Wiki 空間 ID |
+| query | string | 是 | 搜尋關鍵字 |
 
 ### 文件工具
 
@@ -165,42 +165,42 @@ export LARK_APP_SECRET="your_app_secret"
 
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
-| folder_token | string | ✅ | 目標資料夾 Token |
-| title | string | ✅ | 文件標題 |
+| folder_token | string | 是 | 目標資料夾 Token |
+| title | string | 是 | 文件標題 |
 | content | string | | 初始 Markdown 內容 |
 
 #### `doc_read`
 
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
-| document_id | string | ✅ | 文件 ID |
+| document_id | string | 是 | 文件 ID |
 
 #### `doc_update`
 
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
-| document_id | string | ✅ | 文件 ID |
-| content | string | ✅ | 新的 Markdown 內容 |
+| document_id | string | 是 | 文件 ID |
+| content | string | 是 | 新的 Markdown 內容 |
 
 #### `doc_delete`
 
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
-| document_id | string | ✅ | 文件 ID |
+| document_id | string | 是 | 文件 ID |
 
 #### `doc_insert_blocks`
 
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
-| document_id | string | ✅ | 文件 ID |
-| content | string | ✅ | Markdown 內容 |
+| document_id | string | 是 | 文件 ID |
+| content | string | 是 | Markdown 內容 |
 | index | number | | 插入位置（預設 0）|
 
 #### `doc_search`
 
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
-| query | string | ✅ | 搜尋關鍵字 |
+| query | string | 是 | 搜尋關鍵字 |
 | folder_token | string | | 限定搜尋的資料夾 |
 
 #### `drive_list`
@@ -213,7 +213,7 @@ export LARK_APP_SECRET="your_app_secret"
 
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
-| query | string | ✅ | 搜尋關鍵字 |
+| query | string | 是 | 搜尋關鍵字 |
 
 ### 待辦事項工具
 
@@ -229,7 +229,7 @@ export LARK_APP_SECRET="your_app_secret"
 
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
-| summary | string | ✅ | 待辦摘要 |
+| summary | string | 是 | 待辦摘要 |
 | description | string | | 詳細描述 |
 | due_time | string | | 截止時間（ISO 8601）|
 
@@ -237,20 +237,20 @@ export LARK_APP_SECRET="your_app_secret"
 
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
-| query | string | ✅ | 搜尋關鍵字 |
+| query | string | 是 | 搜尋關鍵字 |
 | completed | boolean | | 只搜尋已完成 |
 
 #### `todo_complete` / `todo_delete`
 
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
-| task_id | string | ✅ | 待辦事項 ID |
+| task_id | string | 是 | 待辦事項 ID |
 
 #### `todo_update`
 
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
-| task_id | string | ✅ | 待辦事項 ID |
+| task_id | string | 是 | 待辦事項 ID |
 | summary | string | | 新摘要 |
 | description | string | | 新描述 |
 | due_time | string | | 新截止時間 |
@@ -267,20 +267,20 @@ export LARK_APP_SECRET="your_app_secret"
 
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
-| name | string | ✅ | 清單名稱 |
+| name | string | 是 | 清單名稱 |
 
 #### `tasklist_get` / `tasklist_delete` / `tasklist_tasks`
 
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
-| tasklist_id | string | ✅ | 任務清單 ID |
+| tasklist_id | string | 是 | 任務清單 ID |
 
 #### `tasklist_add_task` / `tasklist_remove_task`
 
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
-| tasklist_id | string | ✅ | 任務清單 ID |
-| task_id | string | ✅ | 待辦事項 ID |
+| tasklist_id | string | 是 | 任務清單 ID |
+| task_id | string | 是 | 待辦事項 ID |
 
 ---
 
@@ -288,17 +288,17 @@ export LARK_APP_SECRET="your_app_secret"
 
 | 語法 | 範例 | 支援 |
 |------|------|------|
-| 標題 | `# H1` ~ `###### H6` | ✅ |
-| 無序清單 | `- item` | ✅ |
-| 有序清單 | `1. item` | ✅ |
-| 引用 | `> quote` | ✅ |
-| 待辦 | `- [x] done` | ✅ |
-| 粗體 | `**bold**` | ✅ |
-| 斜體 | `*italic*` | ✅ |
-| 刪除線 | `~~strike~~` | ✅ |
-| 行內程式碼 | `` `code` `` | ✅ |
-| 分隔線 | `---` | ⚠️ 替代格式 |
-| 程式碼區塊 | ` ```lang ``` ` | ⚠️ 替代格式 |
+| 標題 | `# H1` ~ `###### H6` | 是 |
+| 無序清單 | `- item` | 是 |
+| 有序清單 | `1. item` | 是 |
+| 引用 | `> quote` | 是 |
+| 待辦 | `- [x] done` | 是 |
+| 粗體 | `**bold**` | 是 |
+| 斜體 | `*italic*` | 是 |
+| 刪除線 | `~~strike~~` | 是 |
+| 行內程式碼 | `` `code` `` | 是 |
+| 分隔線 | `---` | 替代格式 |
+| 程式碼區塊 | ` ```lang ``` ` | 替代格式 |
 
 > **注意**: 分隔線和程式碼區塊因 Lark API 限制，使用替代格式呈現。
 
@@ -343,9 +343,9 @@ Lark Docx API 的建立端點不支援部分 block types：
 
 | Block Type | 名稱 | 讀取 | 建立 |
 |------------|------|------|------|
-| 19 | Divider (分隔線) | ✅ | ❌ |
-| 22 | Code (程式碼區塊) | ✅ | ❌ |
-| 27 | Callout (提示區塊) | ✅ | ❌ |
+| 19 | Divider (分隔線) | 是 | 否 |
+| 22 | Code (程式碼區塊) | 是 | 否 |
+| 27 | Callout (提示區塊) | 是 | 否 |
 
 這些 block types 會自動轉換為替代格式：
 - 分隔線 → 視覺分隔線文字 `─────────────────────────────`
