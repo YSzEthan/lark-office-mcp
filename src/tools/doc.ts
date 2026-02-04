@@ -1,516 +1,474 @@
 /**
- * 文件相關工具
- * 精簡版 API，只接受 Markdown 輸入
+ * 文件工具
  */
 
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  DocCreateSchema,
+  DocReadSchema,
+  DocUpdateSchema,
+  DocDeleteSchema,
+  DocInsertBlocksSchema,
+  DocDeleteBlocksSchema,
+  DocSearchSchema,
+  DriveListSchema,
+} from "../schemas/index.js";
 import {
   createDocument,
   getDocumentBlocks,
   getDocumentRootBlockId,
   insertBlocks,
   larkRequest,
-} from "../lark-client.js";
+} from "../services/lark-client.js";
 import { markdownToBlocks, blocksToMarkdown } from "../utils/markdown.js";
-import { success, error, simplifySearchResults, truncate, type ToolResponse } from "../utils/response.js";
+import { success, error, simplifySearchResults, truncate } from "../utils/response.js";
+import { DOC_URL } from "../constants.js";
 
 /**
- * 工具定義
+ * 註冊文件工具
  */
-export const docTools = [
-  {
-    name: "doc_create",
-    description: "建立新文件",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        folder_token: {
-          type: "string",
-          description: "目標資料夾 Token（必填）",
-        },
-        title: {
-          type: "string",
-          description: "文件標題",
-        },
-        content: {
-          type: "string",
-          description: "初始內容（Markdown 格式，可選）",
-        },
-      },
-      required: ["folder_token", "title"],
-    },
-  },
-  {
-    name: "doc_read",
-    description: "讀取文件內容，回傳 Markdown 格式",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        document_id: {
-          type: "string",
-          description: "文件 ID（必填）",
-        },
-      },
-      required: ["document_id"],
-    },
-  },
-  {
-    name: "doc_update",
-    description: "更新文件內容（可指定範圍更新或清空重寫）",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        document_id: {
-          type: "string",
-          description: "文件 ID（必填）",
-        },
-        content: {
-          type: "string",
-          description: "新的 Markdown 內容",
-        },
-        start_index: {
-          type: "number",
-          description: "起始位置索引（可選，需與 end_index 同時使用）",
-        },
-        end_index: {
-          type: "number",
-          description: "結束位置索引（可選，不包含該位置）",
-        },
-      },
-      required: ["document_id", "content"],
-    },
-  },
-  {
-    name: "doc_delete",
-    description: "刪除文件",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        document_id: {
-          type: "string",
-          description: "文件 ID（必填）",
-        },
-      },
-      required: ["document_id"],
-    },
-  },
-  {
-    name: "doc_insert_blocks",
-    description: "在文件指定位置插入內容區塊",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        document_id: {
-          type: "string",
-          description: "文件 ID（必填）",
-        },
-        content: {
-          type: "string",
-          description: "要插入的 Markdown 內容",
-        },
-        index: {
-          type: "number",
-          description: "插入位置索引（從 0 開始，預設為 0）",
-        },
-      },
-      required: ["document_id", "content"],
-    },
-  },
-  {
-    name: "doc_delete_blocks",
-    description: "刪除文件指定範圍的區塊",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        document_id: {
-          type: "string",
-          description: "文件 ID（必填）",
-        },
-        start_index: {
-          type: "number",
-          description: "起始位置索引（從 0 開始，必填）",
-        },
-        end_index: {
-          type: "number",
-          description: "結束位置索引（不包含，必填）",
-        },
-      },
-      required: ["document_id", "start_index", "end_index"],
-    },
-  },
-  {
-    name: "doc_search",
-    description: "搜尋文件",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        query: {
-          type: "string",
-          description: "搜尋關鍵字（必填）",
-        },
-        folder_token: {
-          type: "string",
-          description: "限定搜尋的資料夾 Token（可選）",
-        },
-      },
-      required: ["query"],
-    },
-  },
-  {
-    name: "drive_list",
-    description: "列出雲端硬碟檔案和資料夾",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        folder_token: {
-          type: "string",
-          description: "資料夾 Token（可選，不填則列出根目錄）",
-        },
+export function registerDocTools(server: McpServer): void {
+  // doc_create
+  server.registerTool(
+    "doc_create",
+    {
+      title: "Create Document",
+      description: `Create a new Lark document.
+
+Args:
+  - folder_token (string): Target folder token (required)
+  - title (string): Document title (required)
+  - content (string): Initial content in Markdown format (optional)
+
+Returns:
+  - Document ID, title, and URL
+
+Example:
+  - doc_create folder_token=fldcnXXXXX title="Meeting Notes"
+  - doc_create folder_token=fldcnXXXXX title="Report" content="# Introduction\\nContent here"`,
+      inputSchema: DocCreateSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
       },
     },
-  },
-];
+    async (params) => {
+      try {
+        const { folder_token, title, content, response_format } = params;
+        const { documentId } = await createDocument(folder_token, title);
 
-/**
- * 處理文件工具呼叫
- */
-export async function handleDocTool(
-  name: string,
-  args: Record<string, unknown>
-): Promise<ToolResponse> {
-  try {
-    switch (name) {
-      case "doc_create":
-        return await docCreate(
-          args.folder_token as string,
-          args.title as string,
-          args.content as string | undefined
-        );
+        if (content) {
+          const rootBlockId = await getDocumentRootBlockId(documentId);
+          const blocks = markdownToBlocks(content);
+          await insertBlocks(documentId, rootBlockId, blocks, 0);
+        }
 
-      case "doc_read":
-        return await docRead(args.document_id as string);
-
-      case "doc_update":
-        return await docUpdate(
-          args.document_id as string,
-          args.content as string,
-          args.start_index as number | undefined,
-          args.end_index as number | undefined
-        );
-
-      case "doc_delete":
-        return await docDelete(args.document_id as string);
-
-      case "doc_insert_blocks":
-        return await docInsertBlocks(
-          args.document_id as string,
-          args.content as string,
-          (args.index as number) ?? 0
-        );
-
-      case "doc_delete_blocks":
-        return await docDeleteBlocks(
-          args.document_id as string,
-          args.start_index as number,
-          args.end_index as number
-        );
-
-      case "doc_search":
-        return await docSearch(
-          args.query as string,
-          args.folder_token as string | undefined
-        );
-
-      case "drive_list":
-        return await driveList(args.folder_token as string | undefined);
-
-      default:
-        return error(`未知的文件工具: ${name}`);
+        return success("Document created", {
+          document_id: documentId,
+          title,
+          url: DOC_URL(documentId),
+        }, response_format);
+      } catch (err) {
+        return error("Document creation failed", err);
+      }
     }
-  } catch (err) {
-    return error("文件操作失敗", err);
-  }
-}
+  );
 
-/**
- * 建立新文件
- */
-async function docCreate(
-  folderToken: string,
-  title: string,
-  content?: string
-): Promise<ToolResponse> {
-  if (!folderToken) {
-    return error("缺少 folder_token 參數");
-  }
-  if (!title) {
-    return error("缺少 title 參數");
-  }
+  // doc_read
+  server.registerTool(
+    "doc_read",
+    {
+      title: "Read Document",
+      description: `Read document content and return as Markdown.
 
-  const { documentId } = await createDocument(folderToken, title);
+Args:
+  - document_id (string): Document ID (required)
+  - response_format ('markdown' | 'json'): Output format (default: 'markdown')
 
-  // 如果有初始內容，插入到文件中
-  if (content) {
-    const rootBlockId = await getDocumentRootBlockId(documentId);
-    const blocks = markdownToBlocks(content);
-    await insertBlocks(documentId, rootBlockId, blocks, 0);
-  }
+Returns:
+  - Document content in Markdown format
 
-  return success(`文件建立成功`, {
-    documentId,
-    title,
-    url: `https://yjpo88r1gcti.jp.larksuite.com/docx/${documentId}`,
-  });
-}
-
-/**
- * 讀取文件
- */
-async function docRead(documentId: string): Promise<ToolResponse> {
-  if (!documentId) {
-    return error("缺少 document_id 參數");
-  }
-
-  const blocks = await getDocumentBlocks(documentId);
-  const markdown = blocksToMarkdown(blocks);
-
-  return success(`文件讀取成功`, truncate(markdown));
-}
-
-/**
- * 更新文件內容（可指定範圍更新或清空重寫）
- */
-async function docUpdate(
-  documentId: string,
-  content: string,
-  startIndex?: number,
-  endIndex?: number
-): Promise<ToolResponse> {
-  if (!documentId) {
-    return error("缺少 document_id 參數");
-  }
-  if (!content) {
-    return error("缺少 content 參數");
-  }
-
-  const rootBlockId = await getDocumentRootBlockId(documentId);
-
-  // 判斷是範圍更新還是清空重寫
-  const isRangeUpdate = startIndex !== undefined && endIndex !== undefined;
-
-  if (isRangeUpdate) {
-    // 範圍更新：刪除指定範圍後插入新內容
-    if (startIndex < 0 || endIndex <= startIndex) {
-      return error("無效的範圍參數（end_index 必須大於 start_index）");
-    }
-
-    await larkRequest(`/docx/v1/documents/${documentId}/blocks/${rootBlockId}/children/batch_delete`, {
-      method: "DELETE",
-      body: {
-        document_revision_id: -1,
-        start_index: startIndex,
-        end_index: endIndex,
+Example:
+  - doc_read document_id=doccnXXXXX`,
+      inputSchema: DocReadSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
       },
-    });
-
-    const blocks = markdownToBlocks(content);
-    await insertBlocks(documentId, rootBlockId, blocks, startIndex);
-
-    return success(`文件範圍更新成功，刪除 ${endIndex - startIndex} 個區塊，插入 ${blocks.length} 個區塊`, {
-      documentId,
-      url: `https://yjpo88r1gcti.jp.larksuite.com/docx/${documentId}`,
-    });
-  } else {
-    // 清空重寫
-    const existingBlocks = await getDocumentBlocks(documentId);
-    const childBlockIds = existingBlocks
-      .filter((b) => b.parent_id === rootBlockId && b.block_id !== rootBlockId)
-      .map((b) => b.block_id);
-
-    if (childBlockIds.length > 0) {
-      await larkRequest(`/docx/v1/documents/${documentId}/blocks/${rootBlockId}/children/batch_delete`, {
-        method: "DELETE",
-        body: {
-          document_revision_id: -1,
-          start_index: 0,
-          end_index: childBlockIds.length,
-        },
-      });
-    }
-
-    const blocks = markdownToBlocks(content);
-    await insertBlocks(documentId, rootBlockId, blocks, 0);
-
-    return success(`文件更新成功，插入 ${blocks.length} 個區塊`, {
-      documentId,
-      url: `https://yjpo88r1gcti.jp.larksuite.com/docx/${documentId}`,
-    });
-  }
-}
-
-/**
- * 刪除文件
- */
-async function docDelete(documentId: string): Promise<ToolResponse> {
-  if (!documentId) {
-    return error("缺少 document_id 參數");
-  }
-
-  // Lark API 不支援直接刪除文件，需要透過雲端硬碟 API
-  await larkRequest(`/drive/v1/files/${documentId}`, {
-    method: "DELETE",
-    params: { type: "docx" },
-  });
-
-  return success(`文件已刪除`, { documentId });
-}
-
-/**
- * 在指定位置插入區塊
- */
-async function docInsertBlocks(
-  documentId: string,
-  content: string,
-  index: number
-): Promise<ToolResponse> {
-  if (!documentId) {
-    return error("缺少 document_id 參數");
-  }
-  if (!content) {
-    return error("缺少 content 參數");
-  }
-
-  const rootBlockId = await getDocumentRootBlockId(documentId);
-  const blocks = markdownToBlocks(content);
-
-  await insertBlocks(documentId, rootBlockId, blocks, index);
-
-  return success(`已在位置 ${index} 插入 ${blocks.length} 個區塊`, {
-    documentId,
-    url: `https://yjpo88r1gcti.jp.larksuite.com/docx/${documentId}`,
-  });
-}
-
-/**
- * 刪除指定範圍的區塊
- */
-async function docDeleteBlocks(
-  documentId: string,
-  startIndex: number,
-  endIndex: number
-): Promise<ToolResponse> {
-  if (!documentId) {
-    return error("缺少 document_id 參數");
-  }
-  if (startIndex === undefined || startIndex < 0) {
-    return error("缺少或無效的 start_index 參數");
-  }
-  if (endIndex === undefined || endIndex <= startIndex) {
-    return error("缺少或無效的 end_index 參數（必須大於 start_index）");
-  }
-
-  const rootBlockId = await getDocumentRootBlockId(documentId);
-
-  await larkRequest(`/docx/v1/documents/${documentId}/blocks/${rootBlockId}/children/batch_delete`, {
-    method: "DELETE",
-    body: {
-      document_revision_id: -1,
-      start_index: startIndex,
-      end_index: endIndex,
     },
-  });
+    async (params) => {
+      try {
+        const { document_id, response_format } = params;
+        const blocks = await getDocumentBlocks(document_id);
+        const markdown = blocksToMarkdown(blocks);
 
-  return success(`已刪除位置 ${startIndex} 到 ${endIndex} 的區塊（共 ${endIndex - startIndex} 個）`, {
-    documentId,
-    url: `https://yjpo88r1gcti.jp.larksuite.com/docx/${documentId}`,
-  });
-}
+        return success("Document read successful", truncate(markdown), response_format);
+      } catch (err) {
+        return error("Document read failed", err);
+      }
+    }
+  );
 
-/**
- * 搜尋文件（使用 drive:drive 權限）
- */
-async function docSearch(
-  query: string,
-  folderToken?: string
-): Promise<ToolResponse> {
-  if (!query) {
-    return error("缺少 query 參數");
-  }
+  // doc_update
+  server.registerTool(
+    "doc_update",
+    {
+      title: "Update Document",
+      description: `Update document content. Supports range update or full rewrite.
 
-  const body: Record<string, unknown> = {
-    search_key: query,
-    count: 50,
-  };
+Args:
+  - document_id (string): Document ID (required)
+  - content (string): New Markdown content (required)
+  - start_index (number): Start index for range update (optional)
+  - end_index (number): End index for range update (exclusive, optional)
 
-  if (folderToken) {
-    body.folder_token = folderToken;
-  }
+If start_index and end_index are provided, only that range is replaced.
+Otherwise, the entire document is cleared and rewritten.
 
-  const data = await larkRequest<{
-    files?: Array<{
-      token?: string;
-      name?: string;
-      type?: string;
-      url?: string;
-    }>;
-  }>("/drive/v1/files/search", {
-    method: "POST",
-    body,
-  });
+Returns:
+  - Success message with operation details and document URL
 
-  const files = data.files || [];
+Example:
+  - Full rewrite: doc_update document_id=doccnXXXXX content="# New Content"
+  - Range update: doc_update document_id=doccnXXXXX content="Replacement" start_index=2 end_index=5`,
+      inputSchema: DocUpdateSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { document_id, content, start_index, end_index } = params;
+        const rootBlockId = await getDocumentRootBlockId(document_id);
+        const isRangeUpdate = start_index !== undefined && end_index !== undefined;
 
-  if (files.length === 0) {
-    return success(`搜尋 "${query}" 無結果`);
-  }
+        if (isRangeUpdate) {
+          if (start_index < 0 || end_index <= start_index) {
+            return error("Invalid range (end_index must be greater than start_index)");
+          }
 
-  const simplified = files.map((f) => ({
-    token: f.token,
-    name: f.name,
-    type: f.type,
-    url: f.url,
-  }));
+          await larkRequest(`/docx/v1/documents/${document_id}/blocks/${rootBlockId}/children/batch_delete`, {
+            method: "DELETE",
+            body: {
+              document_revision_id: -1,
+              start_index,
+              end_index,
+            },
+          });
 
-  return success(`搜尋 "${query}" 找到 ${simplified.length} 個結果`, simplified);
-}
+          const blocks = markdownToBlocks(content);
+          await insertBlocks(document_id, rootBlockId, blocks, start_index);
 
-/**
- * 列出雲端硬碟檔案和資料夾
- */
-async function driveList(folderToken?: string): Promise<ToolResponse> {
-  const params: Record<string, string | number> = {
-    page_size: 50,
-  };
+          return success(
+            `Document range update: deleted ${end_index - start_index} blocks, inserted ${blocks.length} blocks`,
+            { document_id, url: DOC_URL(document_id) }
+          );
+        } else {
+          const existingBlocks = await getDocumentBlocks(document_id);
+          const childBlockIds = existingBlocks
+            .filter((b) => b.parent_id === rootBlockId && b.block_id !== rootBlockId)
+            .map((b) => b.block_id);
 
-  if (folderToken) {
-    params.folder_token = folderToken;
-  }
+          if (childBlockIds.length > 0) {
+            await larkRequest(`/docx/v1/documents/${document_id}/blocks/${rootBlockId}/children/batch_delete`, {
+              method: "DELETE",
+              body: {
+                document_revision_id: -1,
+                start_index: 0,
+                end_index: childBlockIds.length,
+              },
+            });
+          }
 
-  const data = await larkRequest<{
-    files?: Array<{
-      token?: string;
-      name?: string;
-      type?: string;
-      parent_token?: string;
-      url?: string;
-      created_time?: string;
-      modified_time?: string;
-    }>;
-    has_more?: boolean;
-  }>("/drive/v1/files", { params });
+          const blocks = markdownToBlocks(content);
+          await insertBlocks(document_id, rootBlockId, blocks, 0);
 
-  const files = data.files || [];
+          return success(`Document update: inserted ${blocks.length} blocks`, {
+            document_id,
+            url: DOC_URL(document_id),
+          });
+        }
+      } catch (err) {
+        return error("Document update failed", err);
+      }
+    }
+  );
 
-  if (files.length === 0) {
-    return success(`資料夾為空`);
-  }
+  // doc_delete
+  server.registerTool(
+    "doc_delete",
+    {
+      title: "Delete Document",
+      description: `Delete a document.
 
-  const simplified = files.map((f) => ({
-    token: f.token,
-    name: f.name,
-    type: f.type,
-    parent_token: f.parent_token,
-    url: f.url,
-  }));
+Args:
+  - document_id (string): Document ID (required)
 
-  return success(`共 ${simplified.length} 個檔案/資料夾`, simplified);
+Returns:
+  - Success message
+
+Example:
+  - doc_delete document_id=doccnXXXXX`,
+      inputSchema: DocDeleteSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { document_id } = params;
+
+        await larkRequest(`/drive/v1/files/${document_id}`, {
+          method: "DELETE",
+          params: { type: "docx" },
+        });
+
+        return success("Document deleted", { document_id });
+      } catch (err) {
+        return error("Document deletion failed", err);
+      }
+    }
+  );
+
+  // doc_insert_blocks
+  server.registerTool(
+    "doc_insert_blocks",
+    {
+      title: "Insert Blocks to Document",
+      description: `Insert content blocks at a specific position in document.
+
+Args:
+  - document_id (string): Document ID (required)
+  - content (string): Markdown content to insert (required)
+  - index (number): Insert position (0-based, default: 0)
+
+Returns:
+  - Success message with position and document URL
+
+Example:
+  - doc_insert_blocks document_id=doccnXXXXX content="New content" index=5`,
+      inputSchema: DocInsertBlocksSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { document_id, content, index } = params;
+        const rootBlockId = await getDocumentRootBlockId(document_id);
+        const blocks = markdownToBlocks(content);
+
+        await insertBlocks(document_id, rootBlockId, blocks, index);
+
+        return success(`Inserted ${blocks.length} blocks at position ${index}`, {
+          document_id,
+          url: DOC_URL(document_id),
+        });
+      } catch (err) {
+        return error("Document insert blocks failed", err);
+      }
+    }
+  );
+
+  // doc_delete_blocks
+  server.registerTool(
+    "doc_delete_blocks",
+    {
+      title: "Delete Document Blocks",
+      description: `Delete a range of blocks from document.
+
+Args:
+  - document_id (string): Document ID (required)
+  - start_index (number): Start index (0-based, required)
+  - end_index (number): End index (exclusive, required)
+
+Returns:
+  - Success message with deleted count and document URL
+
+Example:
+  - doc_delete_blocks document_id=doccnXXXXX start_index=2 end_index=5`,
+      inputSchema: DocDeleteBlocksSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { document_id, start_index, end_index } = params;
+
+        if (start_index < 0 || end_index <= start_index) {
+          return error("Invalid range (end_index must be greater than start_index)");
+        }
+
+        const rootBlockId = await getDocumentRootBlockId(document_id);
+
+        await larkRequest(`/docx/v1/documents/${document_id}/blocks/${rootBlockId}/children/batch_delete`, {
+          method: "DELETE",
+          body: {
+            document_revision_id: -1,
+            start_index,
+            end_index,
+          },
+        });
+
+        return success(`Deleted ${end_index - start_index} blocks (index ${start_index} to ${end_index})`, {
+          document_id,
+          url: DOC_URL(document_id),
+        });
+      } catch (err) {
+        return error("Document delete blocks failed", err);
+      }
+    }
+  );
+
+  // doc_search
+  server.registerTool(
+    "doc_search",
+    {
+      title: "Search Documents",
+      description: `Search for documents.
+
+Args:
+  - query (string): Search keyword (required)
+  - folder_token (string): Limit search to specific folder (optional)
+  - limit (number): Max results (default: 50)
+  - offset (number): Pagination offset (default: 0)
+  - response_format ('markdown' | 'json'): Output format
+
+Returns:
+  - List of documents with token, name, type, url
+
+Example:
+  - doc_search query="meeting notes"
+  - doc_search query="report" folder_token=fldcnXXXXX`,
+      inputSchema: DocSearchSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { query, folder_token, limit, response_format } = params;
+
+        const body: Record<string, unknown> = {
+          search_key: query,
+          count: limit,
+        };
+
+        if (folder_token) {
+          body.folder_token = folder_token;
+        }
+
+        const data = await larkRequest<{
+          files?: Array<{
+            token?: string;
+            name?: string;
+            type?: string;
+            url?: string;
+          }>;
+        }>("/drive/v1/files/search", {
+          method: "POST",
+          body,
+        });
+
+        const files = data.files || [];
+
+        if (files.length === 0) {
+          return success(`Search "${query}" returned no results`);
+        }
+
+        const simplified = simplifySearchResults(files);
+        return success(`Search "${query}" found ${simplified.length} results`, simplified, response_format);
+      } catch (err) {
+        return error("Document search failed", err);
+      }
+    }
+  );
+
+  // drive_list
+  server.registerTool(
+    "drive_list",
+    {
+      title: "List Drive Files",
+      description: `List files and folders in Lark Drive.
+
+Args:
+  - folder_token (string): Folder token (optional, omit for root directory)
+  - limit (number): Max results (default: 50)
+  - offset (number): Pagination offset (default: 0)
+  - response_format ('markdown' | 'json'): Output format
+
+Returns:
+  - List of files/folders with token, name, type, parent_token, url
+
+Example:
+  - drive_list
+  - drive_list folder_token=fldcnXXXXX`,
+      inputSchema: DriveListSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { folder_token, limit, response_format } = params;
+
+        const reqParams: Record<string, string | number> = { page_size: limit };
+        if (folder_token) {
+          reqParams.folder_token = folder_token;
+        }
+
+        const data = await larkRequest<{
+          files?: Array<{
+            token?: string;
+            name?: string;
+            type?: string;
+            parent_token?: string;
+            url?: string;
+          }>;
+          has_more?: boolean;
+        }>("/drive/v1/files", { params: reqParams });
+
+        const files = data.files || [];
+
+        if (files.length === 0) {
+          return success("Folder is empty");
+        }
+
+        const simplified = files.map((f) => ({
+          token: f.token || "",
+          name: f.name || "(untitled)",
+          type: f.type || "unknown",
+          parent_token: f.parent_token,
+          url: f.url,
+        }));
+
+        return success(`Found ${simplified.length} files/folders`, simplified, response_format);
+      } catch (err) {
+        return error("Drive list failed", err);
+      }
+    }
+  );
 }

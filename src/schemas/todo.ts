@@ -1,0 +1,157 @@
+/**
+ * 待辦事項工具 Zod Schema 定義
+ */
+
+import { z } from "zod";
+import { PaginationSchema, ResponseFormatSchema } from "./common.js";
+
+/**
+ * Task ID 參數
+ */
+export const TaskIdSchema = z.object({
+  task_id: z
+    .string()
+    .min(1)
+    .describe("Task ID (required)"),
+});
+
+/**
+ * Tasklist ID 參數
+ */
+export const TasklistIdSchema = z.object({
+  tasklist_id: z
+    .string()
+    .min(1)
+    .describe("Tasklist ID (required)"),
+});
+
+/**
+ * 建立待辦事項
+ */
+export const TodoCreateSchema = z.object({
+  summary: z
+    .string()
+    .min(1)
+    .max(500)
+    .describe("Task summary (required)"),
+  description: z
+    .string()
+    .max(2000)
+    .optional()
+    .describe("Detailed description (optional)"),
+  due_time: z
+    .string()
+    .optional()
+    .describe("Due time in ISO 8601 format (e.g., 2024-12-31T23:59:59+08:00)"),
+}).merge(ResponseFormatSchema);
+
+/**
+ * 列出待辦事項
+ */
+export const TodoListSchema = z.object({
+  completed: z
+    .boolean()
+    .default(false)
+    .describe("List only completed tasks (default: false)"),
+}).merge(PaginationSchema).merge(ResponseFormatSchema);
+
+/**
+ * 搜尋待辦事項
+ */
+export const TodoSearchSchema = z.object({
+  query: z
+    .string()
+    .min(1)
+    .describe("Search keyword (required)"),
+  completed: z
+    .boolean()
+    .optional()
+    .describe("Search only completed tasks"),
+}).merge(PaginationSchema).merge(ResponseFormatSchema);
+
+/**
+ * 完成待辦事項
+ */
+export const TodoCompleteSchema = TaskIdSchema;
+
+/**
+ * 更新待辦事項
+ */
+export const TodoUpdateSchema = TaskIdSchema.extend({
+  summary: z
+    .string()
+    .min(1)
+    .max(500)
+    .optional()
+    .describe("New summary"),
+  description: z
+    .string()
+    .max(2000)
+    .optional()
+    .describe("New description"),
+  due_time: z
+    .string()
+    .optional()
+    .describe("New due time (ISO 8601 format)"),
+});
+
+/**
+ * 刪除待辦事項
+ */
+export const TodoDeleteSchema = TaskIdSchema;
+
+/**
+ * 建立任務清單
+ */
+export const TasklistCreateSchema = z.object({
+  name: z
+    .string()
+    .min(1)
+    .max(200)
+    .describe("Tasklist name (required)"),
+}).merge(ResponseFormatSchema);
+
+/**
+ * 列出任務清單
+ */
+export const TasklistListSchema = PaginationSchema.merge(ResponseFormatSchema);
+
+/**
+ * 取得任務清單詳情
+ */
+export const TasklistGetSchema = TasklistIdSchema.merge(ResponseFormatSchema);
+
+/**
+ * 刪除任務清單
+ */
+export const TasklistDeleteSchema = TasklistIdSchema;
+
+/**
+ * 將待辦加入任務清單
+ */
+export const TasklistAddTaskSchema = TasklistIdSchema.merge(TaskIdSchema);
+
+/**
+ * 從任務清單移除待辦
+ */
+export const TasklistRemoveTaskSchema = TasklistIdSchema.merge(TaskIdSchema);
+
+/**
+ * 列出任務清單中的待辦
+ */
+export const TasklistTasksSchema = TasklistIdSchema.merge(PaginationSchema).merge(ResponseFormatSchema);
+
+// 型別匯出
+export type TodoCreateInput = z.infer<typeof TodoCreateSchema>;
+export type TodoListInput = z.infer<typeof TodoListSchema>;
+export type TodoSearchInput = z.infer<typeof TodoSearchSchema>;
+export type TodoCompleteInput = z.infer<typeof TodoCompleteSchema>;
+export type TodoUpdateInput = z.infer<typeof TodoUpdateSchema>;
+export type TodoDeleteInput = z.infer<typeof TodoDeleteSchema>;
+export type TasklistCreateInput = z.infer<typeof TasklistCreateSchema>;
+export type TasklistListInput = z.infer<typeof TasklistListSchema>;
+export type TasklistGetInput = z.infer<typeof TasklistGetSchema>;
+export type TasklistDeleteInput = z.infer<typeof TasklistDeleteSchema>;
+export type TasklistAddTaskInput = z.infer<typeof TasklistAddTaskSchema>;
+export type TasklistRemoveTaskInput = z.infer<typeof TasklistRemoveTaskSchema>;
+export type TasklistTasksInput = z.infer<typeof TasklistTasksSchema>;

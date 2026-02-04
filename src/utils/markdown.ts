@@ -3,7 +3,7 @@
  * 解決原生 API schema 過大的問題（30,000+ tokens → 精簡輸入）
  */
 
-import type { LarkBlock, LarkTextContent } from "../lark-client.js";
+import type { LarkBlock, LarkTextContent } from "../types.js";
 
 // =============================================================================
 // Markdown → Lark Blocks

@@ -6,8 +6,8 @@ Lark (飛書) MCP Server - 讓 Claude 直接操作 Lark 文件、Wiki、待辦�
 
 | 項目 | 值 |
 |------|-----|
-| 名稱 | lark-mcp |
-| 版本 | 2.1.0 |
+| 名稱 | lark-mcp-server |
+| 版本 | 3.1.0 |
 | 執行環境 | Bun |
 | 認證方式 | OAuth 2.0 (User Access Token) |
 | Token 儲存 | `~/.lark-token.json` |
@@ -27,7 +27,7 @@ bun install
   "mcpServers": {
     "lark": {
       "command": "bun",
-      "args": ["run", "/path/to/lark-mcp/src/index.ts"],
+      "args": ["run", "/path/to/lark-mcp-server/src/index.ts"],
       "env": {
         "LARK_APP_ID": "your_app_id",
         "LARK_APP_SECRET": "your_app_secret"
@@ -62,7 +62,7 @@ bun install
 | `wiki_spaces` | 列出所有 Wiki 空間 |
 | `wiki_list_nodes` | 列出 Wiki 空間的節點 |
 | `wiki_read` | 讀取 Wiki 內容（回傳 Markdown）|
-| `wiki_update` | 更新 Wiki 內容（清空重寫）|
+| `wiki_update` | 更新 Wiki 內容（範圍更新或清空重寫）|
 | `wiki_prepend` | 在 Wiki 頂部插入內容 |
 | `wiki_append` | 在 Wiki 底部追加內容 |
 | `wiki_insert_blocks` | 在指定位置插入內容 |
@@ -75,13 +75,13 @@ bun install
 |------|------|
 | `doc_create` | 建立新文件 |
 | `doc_read` | 讀取文件（回傳 Markdown）|
-| `doc_update` | 更新文件內容（清空重寫）|
+| `doc_update` | 更新文件內容（範圍更新或清空重寫）|
 | `doc_delete` | 刪除文件 |
 | `doc_insert_blocks` | 在指定位置插入內容 |
 | `doc_delete_blocks` | 刪除指定範圍的區塊 |
 | `doc_search` | 搜尋文件 |
 | `drive_list` | 列出雲端硬碟檔案 |
-| `search_all` | 全域搜尋 |
+| `lark_search` | 全域搜尋 |
 
 ### 待辦事項工具
 
@@ -108,6 +108,18 @@ bun install
 
 ---
 
+## 通用參數
+
+所有列表/搜尋工具皆支援以下可選參數：
+
+| 參數 | 類型 | 預設值 | 說明 |
+|------|------|--------|------|
+| limit | number | 50 | 最大結果數 (1-100) |
+| offset | number | 0 | 分頁偏移量 |
+| response_format | string | "markdown" | 輸出格式："markdown" 或 "json" |
+
+---
+
 ## 工具參數詳細說明
 
 ### 認證工具
@@ -125,7 +137,7 @@ bun install
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
 | space_id | string | 是 | Wiki 空間 ID |
-| parent_node_token | string | | 父節點 Token（不填列出根節點）|
+| parent_node_token | string | 否 | 父節點 Token（不填列出根節點）|
 
 #### `wiki_read`
 
@@ -139,8 +151,8 @@ bun install
 |------|------|------|------|
 | wiki_token | string | 是 | Wiki 節點 Token |
 | content | string | 是 | 新的 Markdown 內容 |
-| start_index | number | | 起始位置（範圍更新時使用）|
-| end_index | number | | 結束位置（範圍更新時使用）|
+| start_index | number | 否 | 起始位置（範圍更新時使用）|
+| end_index | number | 否 | 結束位置（範圍更新時使用）|
 
 #### `wiki_prepend` / `wiki_append`
 
@@ -155,7 +167,7 @@ bun install
 |------|------|------|------|
 | wiki_token | string | 是 | Wiki 節點 Token |
 | content | string | 是 | Markdown 內容 |
-| index | number | | 插入位置（預設 0）|
+| index | number | 否 | 插入位置（預設 0）|
 
 #### `wiki_delete_blocks`
 
@@ -180,7 +192,7 @@ bun install
 |------|------|------|------|
 | folder_token | string | 是 | 目標資料夾 Token |
 | title | string | 是 | 文件標題 |
-| content | string | | 初始 Markdown 內容 |
+| content | string | 否 | 初始 Markdown 內容 |
 
 #### `doc_read`
 
@@ -194,8 +206,8 @@ bun install
 |------|------|------|------|
 | document_id | string | 是 | 文件 ID |
 | content | string | 是 | 新的 Markdown 內容 |
-| start_index | number | | 起始位置（範圍更新時使用）|
-| end_index | number | | 結束位置（範圍更新時使用）|
+| start_index | number | 否 | 起始位置（範圍更新時使用）|
+| end_index | number | 否 | 結束位置（範圍更新時使用）|
 
 #### `doc_delete`
 
@@ -209,7 +221,7 @@ bun install
 |------|------|------|------|
 | document_id | string | 是 | 文件 ID |
 | content | string | 是 | Markdown 內容 |
-| index | number | | 插入位置（預設 0）|
+| index | number | 否 | 插入位置（預設 0）|
 
 #### `doc_delete_blocks`
 
@@ -224,15 +236,15 @@ bun install
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
 | query | string | 是 | 搜尋關鍵字 |
-| folder_token | string | | 限定搜尋的資料夾 |
+| folder_token | string | 否 | 限定搜尋的資料夾 |
 
 #### `drive_list`
 
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
-| folder_token | string | | 資料夾 Token（不填列出根目錄）|
+| folder_token | string | 否 | 資料夾 Token（不填列出根目錄）|
 
-#### `search_all`
+#### `lark_search`
 
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
@@ -244,24 +256,22 @@ bun install
 
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
-| completed | boolean | | 只列出已完成（預設 false）|
-| page_size | number | | 每頁數量（預設 50，最大 100）|
-| page_token | string | | 分頁標記 |
+| completed | boolean | 否 | 只列出已完成（預設 false）|
 
 #### `todo_create`
 
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
 | summary | string | 是 | 待辦摘要 |
-| description | string | | 詳細描述 |
-| due_time | string | | 截止時間（ISO 8601）|
+| description | string | 否 | 詳細描述 |
+| due_time | string | 否 | 截止時間（ISO 8601）|
 
 #### `todo_search`
 
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
 | query | string | 是 | 搜尋關鍵字 |
-| completed | boolean | | 只搜尋已完成 |
+| completed | boolean | 否 | 只搜尋已完成 |
 
 #### `todo_complete` / `todo_delete`
 
@@ -274,17 +284,11 @@ bun install
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
 | task_id | string | 是 | 待辦事項 ID |
-| summary | string | | 新摘要 |
-| description | string | | 新描述 |
-| due_time | string | | 新截止時間 |
+| summary | string | 否 | 新摘要 |
+| description | string | 否 | 新描述 |
+| due_time | string | 否 | 新截止時間 |
 
 ### 任務清單工具
-
-#### `tasklist_list`
-
-| 參數 | 類型 | 必填 | 說明 |
-|------|------|------|------|
-| page_size | number | | 每頁數量（預設 50）|
 
 #### `tasklist_create`
 
@@ -345,15 +349,25 @@ bun install
 
 ```
 src/
-├── index.ts          # MCP Server 入口
-├── lark-client.ts    # Lark API 客戶端
+├── index.ts              # MCP Server 入口
+├── constants.ts          # 常數與設定
+├── types.ts              # TypeScript 型別定義
+├── schemas/              # Zod 驗證 Schema
+│   ├── common.ts
+│   ├── auth.ts
+│   ├── wiki.ts
+│   ├── doc.ts
+│   └── todo.ts
+├── services/
+│   └── lark-client.ts    # Lark API 客戶端
 ├── tools/
-│   ├── wiki.ts       # Wiki 工具
-│   ├── doc.ts        # 文件工具
-│   └── todo.ts       # 待辦事項工具
+│   ├── auth.ts           # 認證工具
+│   ├── wiki.ts           # Wiki 工具
+│   ├── doc.ts            # 文件工具
+│   └── todo.ts           # 待辦事項工具
 └── utils/
-    ├── markdown.ts   # Markdown ↔ Lark Block 轉換
-    └── response.ts   # 回應格式化工具
+    ├── markdown.ts       # Markdown 與 Lark Block 轉換
+    └── response.ts       # 回應格式化工具
 ```
 
 ---
@@ -366,13 +380,13 @@ Lark Docx API 的建立端點不支援部分 block types：
 
 | Block Type | 名稱 | 讀取 | 建立 |
 |------------|------|------|------|
-| 19 | Divider (分隔線) | 是 | 否 |
-| 22 | Code (程式碼區塊) | 是 | 否 |
-| 27 | Callout (提示區塊) | 是 | 否 |
+| 19 | 分隔線 (Divider) | 是 | 否 |
+| 22 | 程式碼區塊 (Code) | 是 | 否 |
+| 27 | 提示區塊 (Callout) | 是 | 否 |
 
 這些 block types 會自動轉換為替代格式：
-- 分隔線 → 視覺分隔線文字 `─────────────────────────────`
-- 程式碼區塊 → `[語言]` 標籤 + inline_code 樣式文字
+- 分隔線 -> 視覺分隔線文字
+- 程式碼區塊 -> `[語言]` 標籤 + inline_code 樣式
 
 ---
 

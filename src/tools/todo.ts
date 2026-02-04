@@ -1,694 +1,671 @@
 /**
- * 待辦事項相關工具
- * 精簡版 API
+ * 待辦事項工具
  */
 
-import { larkRequest } from "../lark-client.js";
-import { success, error, simplifyTodo, simplifyTodoList, type ToolResponse } from "../utils/response.js";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  TodoCreateSchema,
+  TodoListSchema,
+  TodoSearchSchema,
+  TodoCompleteSchema,
+  TodoUpdateSchema,
+  TodoDeleteSchema,
+  TasklistCreateSchema,
+  TasklistListSchema,
+  TasklistGetSchema,
+  TasklistDeleteSchema,
+  TasklistAddTaskSchema,
+  TasklistRemoveTaskSchema,
+  TasklistTasksSchema,
+} from "../schemas/index.js";
+import { larkRequest } from "../services/lark-client.js";
+import { success, error, simplifyTodo, simplifyTodoList } from "../utils/response.js";
 
 /**
- * 工具定義
+ * 註冊待辦事項工具
  */
-export const todoTools = [
-  {
-    name: "todo_create",
-    description: "建立待辦事項",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        summary: {
-          type: "string",
-          description: "待辦事項摘要（必填）",
-        },
-        description: {
-          type: "string",
-          description: "詳細描述（可選）",
-        },
-        due_time: {
-          type: "string",
-          description: "截止時間（ISO 8601 格式，例如 2024-12-31T23:59:59+08:00）",
-        },
-      },
-      required: ["summary"],
-    },
-  },
-  {
-    name: "todo_list",
-    description: "列出待辦事項",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        page_size: {
-          type: "number",
-          description: "每頁數量（預設 50，最大 100）",
-        },
-        page_token: {
-          type: "string",
-          description: "分頁標記（用於取得下一頁）",
-        },
-        completed: {
-          type: "boolean",
-          description: "是否只列出已完成的待辦（預設 false）",
-        },
+export function registerTodoTools(server: McpServer): void {
+  // todo_create
+  server.registerTool(
+    "todo_create",
+    {
+      title: "Create Task",
+      description: `Create a new task/todo.
+
+Args:
+  - summary (string): Task summary (required)
+  - description (string): Detailed description (optional)
+  - due_time (string): Due time in ISO 8601 format (optional)
+
+Returns:
+  - Task ID and summary
+
+Example:
+  - todo_create summary="Review PR"
+  - todo_create summary="Submit report" due_time="2024-12-31T23:59:59+08:00"`,
+      inputSchema: TodoCreateSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
       },
     },
-  },
-  {
-    name: "todo_search",
-    description: "搜尋待辦事項",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        query: {
-          type: "string",
-          description: "搜尋關鍵字（必填）",
-        },
-        completed: {
-          type: "boolean",
-          description: "是否只搜尋已完成的待辦",
-        },
-      },
-      required: ["query"],
-    },
-  },
-  {
-    name: "todo_complete",
-    description: "完成待辦事項",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        task_id: {
-          type: "string",
-          description: "待辦事項 ID（必填）",
-        },
-      },
-      required: ["task_id"],
-    },
-  },
-  {
-    name: "todo_update",
-    description: "更新待辦事項",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        task_id: {
-          type: "string",
-          description: "待辦事項 ID（必填）",
-        },
-        summary: {
-          type: "string",
-          description: "新的摘要",
-        },
-        description: {
-          type: "string",
-          description: "新的描述",
-        },
-        due_time: {
-          type: "string",
-          description: "新的截止時間（ISO 8601 格式）",
-        },
-      },
-      required: ["task_id"],
-    },
-  },
-  {
-    name: "todo_delete",
-    description: "刪除待辦事項",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        task_id: {
-          type: "string",
-          description: "待辦事項 ID（必填）",
-        },
-      },
-      required: ["task_id"],
-    },
-  },
-  // ========== 任務清單（容器）工具 ==========
-  {
-    name: "tasklist_create",
-    description: "建立任務清單（容器）",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        name: {
-          type: "string",
-          description: "清單名稱（必填）",
-        },
-      },
-      required: ["name"],
-    },
-  },
-  {
-    name: "tasklist_list",
-    description: "列出所有任務清單",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        page_size: {
-          type: "number",
-          description: "每頁數量（預設 50）",
-        },
-      },
-    },
-  },
-  {
-    name: "tasklist_get",
-    description: "取得任務清單詳情",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        tasklist_id: {
-          type: "string",
-          description: "任務清單 ID（必填）",
-        },
-      },
-      required: ["tasklist_id"],
-    },
-  },
-  {
-    name: "tasklist_delete",
-    description: "刪除任務清單",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        tasklist_id: {
-          type: "string",
-          description: "任務清單 ID（必填）",
-        },
-      },
-      required: ["tasklist_id"],
-    },
-  },
-  {
-    name: "tasklist_add_task",
-    description: "將待辦事項加入任務清單",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        tasklist_id: {
-          type: "string",
-          description: "任務清單 ID（必填）",
-        },
-        task_id: {
-          type: "string",
-          description: "待辦事項 ID（必填）",
-        },
-      },
-      required: ["tasklist_id", "task_id"],
-    },
-  },
-  {
-    name: "tasklist_remove_task",
-    description: "從任務清單移除待辦事項",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        tasklist_id: {
-          type: "string",
-          description: "任務清單 ID（必填）",
-        },
-        task_id: {
-          type: "string",
-          description: "待辦事項 ID（必填）",
-        },
-      },
-      required: ["tasklist_id", "task_id"],
-    },
-  },
-  {
-    name: "tasklist_tasks",
-    description: "列出任務清單中的所有待辦事項",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        tasklist_id: {
-          type: "string",
-          description: "任務清單 ID（必填）",
-        },
-      },
-      required: ["tasklist_id"],
-    },
-  },
-];
+    async (params) => {
+      try {
+        const { summary, description, due_time, response_format } = params;
 
-/**
- * 處理待辦事項工具呼叫
- */
-export async function handleTodoTool(
-  name: string,
-  args: Record<string, unknown>
-): Promise<ToolResponse> {
-  try {
-    switch (name) {
-      case "todo_create":
-        return await todoCreate(
-          args.summary as string,
-          args.description as string | undefined,
-          args.due_time as string | undefined
-        );
+        const body: Record<string, unknown> = { summary };
+        if (description) body.description = description;
+        if (due_time) {
+          body.due = {
+            timestamp: new Date(due_time).getTime().toString(),
+            is_all_day: false,
+          };
+        }
 
-      case "todo_list":
-        return await todoList(
-          args.page_size as number | undefined,
-          args.page_token as string | undefined,
-          args.completed as boolean | undefined
-        );
+        const data = await larkRequest<{
+          task: { guid: string; summary: string };
+        }>("/task/v2/tasks", {
+          method: "POST",
+          body,
+        });
 
-      case "todo_search":
-        return await todoSearch(
-          args.query as string,
-          args.completed as boolean | undefined
-        );
-
-      case "todo_complete":
-        return await todoComplete(args.task_id as string);
-
-      case "todo_update":
-        return await todoUpdate(
-          args.task_id as string,
-          args.summary as string | undefined,
-          args.description as string | undefined,
-          args.due_time as string | undefined
-        );
-
-      case "todo_delete":
-        return await todoDelete(args.task_id as string);
-
-      // ========== 任務清單工具 ==========
-      case "tasklist_create":
-        return await tasklistCreate(args.name as string);
-
-      case "tasklist_list":
-        return await tasklistList(args.page_size as number | undefined);
-
-      case "tasklist_get":
-        return await tasklistGet(args.tasklist_id as string);
-
-      case "tasklist_delete":
-        return await tasklistDelete(args.tasklist_id as string);
-
-      case "tasklist_add_task":
-        return await tasklistAddTask(
-          args.tasklist_id as string,
-          args.task_id as string
-        );
-
-      case "tasklist_remove_task":
-        return await tasklistRemoveTask(
-          args.tasklist_id as string,
-          args.task_id as string
-        );
-
-      case "tasklist_tasks":
-        return await tasklistTasks(args.tasklist_id as string);
-
-      default:
-        return error(`未知的待辦事項工具: ${name}`);
+        return success("Task created", {
+          id: data.task.guid,
+          summary: data.task.summary,
+        }, response_format);
+      } catch (err) {
+        return error("Task creation failed", err);
+      }
     }
-  } catch (err) {
-    return error("待辦事項操作失敗", err);
-  }
-}
-
-/**
- * 建立待辦事項
- */
-async function todoCreate(
-  summary: string,
-  description?: string,
-  dueTime?: string
-): Promise<ToolResponse> {
-  if (!summary) {
-    return error("缺少 summary 參數");
-  }
-
-  const body: Record<string, unknown> = { summary };
-
-  if (description) {
-    body.description = description;
-  }
-
-  if (dueTime) {
-    body.due = {
-      timestamp: new Date(dueTime).getTime().toString(),
-      is_all_day: false,
-    };
-  }
-
-  const data = await larkRequest<{
-    task: {
-      guid: string;
-      summary: string;
-    };
-  }>("/task/v2/tasks", {
-    method: "POST",
-    body,
-  });
-
-  return success(`待辦事項建立成功`, {
-    id: data.task.guid,
-    summary: data.task.summary,
-  });
-}
-
-/**
- * 列出待辦事項
- */
-async function todoList(
-  pageSize = 50,
-  pageToken?: string,
-  completed?: boolean
-): Promise<ToolResponse> {
-  const params: Record<string, string | number> = {
-    page_size: Math.min(pageSize, 100),
-  };
-
-  if (pageToken) {
-    params.page_token = pageToken;
-  }
-
-  // 使用不同的 API 路徑取得已完成/未完成的待辦
-  const endpoint = completed
-    ? "/task/v2/tasks?completed_type=completed"
-    : "/task/v2/tasks";
-
-  const data = await larkRequest<{
-    items?: Array<{
-      guid?: string;
-      summary?: string;
-      description?: string;
-      due?: { timestamp?: string; is_all_day?: boolean };
-      completed_at?: string;
-      creator?: { id?: string; name?: string };
-    }>;
-    page_token?: string;
-    has_more?: boolean;
-  }>(endpoint, { params });
-
-  const todos = data.items || [];
-  const simplified = simplifyTodoList(todos);
-
-  let message = `📋 共 ${simplified.length} 個待辦事項`;
-  if (data.has_more) {
-    message += `（還有更多，使用 page_token: "${data.page_token}" 取得下一頁）`;
-  }
-
-  return success(message, simplified);
-}
-
-/**
- * 搜尋待辦事項
- */
-async function todoSearch(
-  query: string,
-  completed?: boolean
-): Promise<ToolResponse> {
-  if (!query) {
-    return error("缺少 query 參數");
-  }
-
-  // Lark Task API 不支援搜尋，所以先取得所有待辦再過濾
-  const params: Record<string, string | number> = { page_size: 100 };
-  const endpoint = completed
-    ? "/task/v2/tasks?completed_type=completed"
-    : "/task/v2/tasks";
-
-  const data = await larkRequest<{
-    items?: Array<{
-      guid?: string;
-      summary?: string;
-      description?: string;
-      due?: { timestamp?: string; is_all_day?: boolean };
-      completed_at?: string;
-      creator?: { id?: string; name?: string };
-    }>;
-  }>(endpoint, { params });
-
-  const todos = data.items || [];
-  const filtered = todos.filter((todo) =>
-    todo.summary?.toLowerCase().includes(query.toLowerCase()) ||
-    todo.description?.toLowerCase().includes(query.toLowerCase())
   );
 
-  if (filtered.length === 0) {
-    return success(`搜尋 "${query}" 無結果`);
-  }
+  // todo_list
+  server.registerTool(
+    "todo_list",
+    {
+      title: "List Tasks",
+      description: `List tasks/todos.
 
-  const simplified = simplifyTodoList(filtered);
-  return success(`搜尋 "${query}" 找到 ${simplified.length} 個待辦事項`, simplified);
-}
+Args:
+  - completed (boolean): List only completed tasks (default: false)
+  - limit (number): Max results (default: 50)
+  - offset (number): Pagination offset (default: 0)
+  - response_format ('markdown' | 'json'): Output format
 
-/**
- * 完成待辦事項
- * Task v2 沒有獨立的 complete 端點，需要用 PATCH 更新 completed_at 欄位
- */
-async function todoComplete(taskId: string): Promise<ToolResponse> {
-  if (!taskId) {
-    return error("缺少 task_id 參數");
-  }
+Returns:
+  - List of tasks with id, summary, due_time, is_completed
 
-  // 設定 completed_at 為當前時間戳（毫秒轉秒的字串）
-  const completedAt = Math.floor(Date.now() / 1000).toString();
-
-  await larkRequest(`/task/v2/tasks/${taskId}`, {
-    method: "PATCH",
-    body: {
-      task: {
-        completed_at: completedAt,
+Example:
+  - todo_list
+  - todo_list completed=true`,
+      inputSchema: TodoListSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
       },
-      update_fields: ["completed_at"],
     },
-  });
+    async (params) => {
+      try {
+        const { completed, limit, response_format } = params;
 
-  return success(`待辦事項已完成`, { taskId });
-}
+        const endpoint = completed
+          ? "/task/v2/tasks?completed_type=completed"
+          : "/task/v2/tasks";
 
-/**
- * 更新待辦事項
- */
-async function todoUpdate(
-  taskId: string,
-  summary?: string,
-  description?: string,
-  dueTime?: string
-): Promise<ToolResponse> {
-  if (!taskId) {
-    return error("缺少 task_id 參數");
-  }
+        const data = await larkRequest<{
+          items?: Array<{
+            guid?: string;
+            summary?: string;
+            description?: string;
+            due?: { timestamp?: string; is_all_day?: boolean };
+            completed_at?: string;
+            creator?: { id?: string; name?: string };
+          }>;
+          page_token?: string;
+          has_more?: boolean;
+        }>(endpoint, { params: { page_size: limit } });
 
-  if (!summary && !description && !dueTime) {
-    return error("至少需要提供一個要更新的欄位（summary、description 或 due_time）");
-  }
+        const todos = data.items || [];
+        const simplified = simplifyTodoList(todos);
 
-  const body: Record<string, unknown> = {};
-  const updateFields: string[] = [];
+        let message = `Found ${simplified.length} tasks`;
+        if (data.has_more) {
+          message += " (more available)";
+        }
 
-  if (summary) {
-    body.summary = summary;
-    updateFields.push("summary");
-  }
+        return success(message, simplified, response_format);
+      } catch (err) {
+        return error("Task list failed", err);
+      }
+    }
+  );
 
-  if (description) {
-    body.description = description;
-    updateFields.push("description");
-  }
+  // todo_search
+  server.registerTool(
+    "todo_search",
+    {
+      title: "Search Tasks",
+      description: `Search tasks/todos by keyword.
 
-  if (dueTime) {
-    body.due = {
-      timestamp: new Date(dueTime).getTime().toString(),
-      is_all_day: false,
-    };
-    updateFields.push("due");
-  }
+Args:
+  - query (string): Search keyword (required)
+  - completed (boolean): Search only completed tasks (optional)
+  - limit (number): Max results (default: 50)
+  - response_format ('markdown' | 'json'): Output format
 
-  await larkRequest(`/task/v2/tasks/${taskId}`, {
-    method: "PATCH",
-    body: {
-      task: body,
-      update_fields: updateFields,
+Returns:
+  - List of matching tasks
+
+Example:
+  - todo_search query="meeting"`,
+      inputSchema: TodoSearchSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
-  });
+    async (params) => {
+      try {
+        const { query, completed, limit, response_format } = params;
 
-  return success(`待辦事項已更新`, { taskId, updated: updateFields });
-}
+        const endpoint = completed
+          ? "/task/v2/tasks?completed_type=completed"
+          : "/task/v2/tasks";
 
-/**
- * 刪除待辦事項
- */
-async function todoDelete(taskId: string): Promise<ToolResponse> {
-  if (!taskId) {
-    return error("缺少 task_id 參數");
-  }
+        const data = await larkRequest<{
+          items?: Array<{
+            guid?: string;
+            summary?: string;
+            description?: string;
+            due?: { timestamp?: string; is_all_day?: boolean };
+            completed_at?: string;
+            creator?: { id?: string; name?: string };
+          }>;
+        }>(endpoint, { params: { page_size: limit } });
 
-  await larkRequest(`/task/v2/tasks/${taskId}`, {
-    method: "DELETE",
-  });
+        const todos = data.items || [];
+        const filtered = todos.filter((todo) =>
+          todo.summary?.toLowerCase().includes(query.toLowerCase()) ||
+          todo.description?.toLowerCase().includes(query.toLowerCase())
+        );
 
-  return success(`待辦事項已刪除`, { taskId });
-}
+        if (filtered.length === 0) {
+          return success(`Search "${query}" returned no results`);
+        }
 
-// =============================================================================
-// 任務清單（容器）功能
-// =============================================================================
+        const simplified = simplifyTodoList(filtered);
+        return success(`Search "${query}" found ${simplified.length} tasks`, simplified, response_format);
+      } catch (err) {
+        return error("Task search failed", err);
+      }
+    }
+  );
 
-/**
- * 建立任務清單
- */
-async function tasklistCreate(name: string): Promise<ToolResponse> {
-  if (!name) {
-    return error("缺少 name 參數");
-  }
+  // todo_complete
+  server.registerTool(
+    "todo_complete",
+    {
+      title: "Complete Task",
+      description: `Mark a task as completed.
 
-  const data = await larkRequest<{
-    tasklist: {
-      guid: string;
-      name: string;
-    };
-  }>("/task/v2/tasklists", {
-    method: "POST",
-    body: { name },
-  });
+Args:
+  - task_id (string): Task ID (required)
 
-  return success(`任務清單建立成功`, {
-    id: data.tasklist.guid,
-    name: data.tasklist.name,
-  });
-}
+Returns:
+  - Success message
 
-/**
- * 列出所有任務清單
- */
-async function tasklistList(pageSize = 50): Promise<ToolResponse> {
-  const data = await larkRequest<{
-    items?: Array<{
-      guid?: string;
-      name?: string;
-      creator?: { id?: string; name?: string };
-      members?: Array<{ id?: string; name?: string; role?: string }>;
-    }>;
-    page_token?: string;
-    has_more?: boolean;
-  }>("/task/v2/tasklists", {
-    params: { page_size: Math.min(pageSize, 100) },
-  });
+Example:
+  - todo_complete task_id=7XXXXXX`,
+      inputSchema: TodoCompleteSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { task_id } = params;
+        const completedAt = Math.floor(Date.now() / 1000).toString();
 
-  const lists = data.items || [];
-  const simplified = lists.map((list) => ({
-    id: list.guid,
-    name: list.name,
-  }));
+        await larkRequest(`/task/v2/tasks/${task_id}`, {
+          method: "PATCH",
+          body: {
+            task: { completed_at: completedAt },
+            update_fields: ["completed_at"],
+          },
+        });
 
-  return success(`共 ${simplified.length} 個任務清單`, simplified);
-}
+        return success("Task completed", { task_id });
+      } catch (err) {
+        return error("Task completion failed", err);
+      }
+    }
+  );
 
-/**
- * 取得任務清單詳情
- */
-async function tasklistGet(tasklistId: string): Promise<ToolResponse> {
-  if (!tasklistId) {
-    return error("缺少 tasklist_id 參數");
-  }
+  // todo_update
+  server.registerTool(
+    "todo_update",
+    {
+      title: "Update Task",
+      description: `Update a task's details.
 
-  const data = await larkRequest<{
-    tasklist: {
-      guid?: string;
-      name?: string;
-      creator?: { id?: string; name?: string };
-      members?: Array<{ id?: string; name?: string; role?: string }>;
-    };
-  }>(`/task/v2/tasklists/${tasklistId}`);
+Args:
+  - task_id (string): Task ID (required)
+  - summary (string): New summary (optional)
+  - description (string): New description (optional)
+  - due_time (string): New due time in ISO 8601 format (optional)
 
-  return success(`任務清單詳情`, {
-    id: data.tasklist.guid,
-    name: data.tasklist.name,
-    creator: data.tasklist.creator?.name,
-    members: data.tasklist.members?.map((m) => m.name),
-  });
-}
+At least one of summary, description, or due_time must be provided.
 
-/**
- * 刪除任務清單
- */
-async function tasklistDelete(tasklistId: string): Promise<ToolResponse> {
-  if (!tasklistId) {
-    return error("缺少 tasklist_id 參數");
-  }
+Returns:
+  - Success message with updated fields
 
-  await larkRequest(`/task/v2/tasklists/${tasklistId}`, {
-    method: "DELETE",
-  });
+Example:
+  - todo_update task_id=7XXXXXX summary="Updated title"`,
+      inputSchema: TodoUpdateSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { task_id, summary, description, due_time } = params;
 
-  return success(`任務清單已刪除`, { tasklistId });
-}
+        if (!summary && !description && !due_time) {
+          return error("At least one field (summary, description, or due_time) must be provided");
+        }
 
-/**
- * 將待辦事項加入任務清單
- */
-async function tasklistAddTask(
-  tasklistId: string,
-  taskId: string
-): Promise<ToolResponse> {
-  if (!tasklistId) {
-    return error("缺少 tasklist_id 參數");
-  }
-  if (!taskId) {
-    return error("缺少 task_id 參數");
-  }
+        const body: Record<string, unknown> = {};
+        const updateFields: string[] = [];
 
-  await larkRequest(`/task/v2/tasks/${taskId}/add_tasklist`, {
-    method: "POST",
-    body: { tasklist_guid: tasklistId },
-  });
+        if (summary) {
+          body.summary = summary;
+          updateFields.push("summary");
+        }
+        if (description) {
+          body.description = description;
+          updateFields.push("description");
+        }
+        if (due_time) {
+          body.due = {
+            timestamp: new Date(due_time).getTime().toString(),
+            is_all_day: false,
+          };
+          updateFields.push("due");
+        }
 
-  return success(`待辦事項已加入任務清單`, { tasklistId, taskId });
-}
+        await larkRequest(`/task/v2/tasks/${task_id}`, {
+          method: "PATCH",
+          body: {
+            task: body,
+            update_fields: updateFields,
+          },
+        });
 
-/**
- * 從任務清單移除待辦事項
- */
-async function tasklistRemoveTask(
-  tasklistId: string,
-  taskId: string
-): Promise<ToolResponse> {
-  if (!tasklistId) {
-    return error("缺少 tasklist_id 參數");
-  }
-  if (!taskId) {
-    return error("缺少 task_id 參數");
-  }
+        return success("Task updated", { task_id, updated_fields: updateFields });
+      } catch (err) {
+        return error("Task update failed", err);
+      }
+    }
+  );
 
-  await larkRequest(`/task/v2/tasks/${taskId}/remove_tasklist`, {
-    method: "POST",
-    body: { tasklist_guid: tasklistId },
-  });
+  // todo_delete
+  server.registerTool(
+    "todo_delete",
+    {
+      title: "Delete Task",
+      description: `Delete a task.
 
-  return success(`待辦事項已從任務清單移除`, { tasklistId, taskId });
-}
+Args:
+  - task_id (string): Task ID (required)
 
-/**
- * 列出任務清單中的所有待辦事項
- */
-async function tasklistTasks(tasklistId: string): Promise<ToolResponse> {
-  if (!tasklistId) {
-    return error("缺少 tasklist_id 參數");
-  }
+Returns:
+  - Success message
 
-  const data = await larkRequest<{
-    items?: Array<{
-      guid?: string;
-      summary?: string;
-      completed_at?: string;
-    }>;
-  }>(`/task/v2/tasklists/${tasklistId}/tasks`);
+Example:
+  - todo_delete task_id=7XXXXXX`,
+      inputSchema: TodoDeleteSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { task_id } = params;
 
-  const tasks = data.items || [];
-  const simplified = tasks.map((task) => ({
-    id: task.guid,
-    summary: task.summary,
-    completed: !!task.completed_at,
-  }));
+        await larkRequest(`/task/v2/tasks/${task_id}`, {
+          method: "DELETE",
+        });
 
-  return success(`📋 清單中有 ${simplified.length} 個待辦事項`, simplified);
+        return success("Task deleted", { task_id });
+      } catch (err) {
+        return error("Task deletion failed", err);
+      }
+    }
+  );
+
+  // tasklist_create
+  server.registerTool(
+    "tasklist_create",
+    {
+      title: "Create Tasklist",
+      description: `Create a new tasklist (container for tasks).
+
+Args:
+  - name (string): Tasklist name (required)
+
+Returns:
+  - Tasklist ID and name
+
+Example:
+  - tasklist_create name="Project Tasks"`,
+      inputSchema: TasklistCreateSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { name, response_format } = params;
+
+        const data = await larkRequest<{
+          tasklist: { guid: string; name: string };
+        }>("/task/v2/tasklists", {
+          method: "POST",
+          body: { name },
+        });
+
+        return success("Tasklist created", {
+          id: data.tasklist.guid,
+          name: data.tasklist.name,
+        }, response_format);
+      } catch (err) {
+        return error("Tasklist creation failed", err);
+      }
+    }
+  );
+
+  // tasklist_list
+  server.registerTool(
+    "tasklist_list",
+    {
+      title: "List Tasklists",
+      description: `List all tasklists.
+
+Args:
+  - limit (number): Max results (default: 50)
+  - offset (number): Pagination offset (default: 0)
+  - response_format ('markdown' | 'json'): Output format
+
+Returns:
+  - List of tasklists with id and name
+
+Example:
+  - tasklist_list`,
+      inputSchema: TasklistListSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { limit, response_format } = params;
+
+        const data = await larkRequest<{
+          items?: Array<{ guid?: string; name?: string }>;
+        }>("/task/v2/tasklists", {
+          params: { page_size: limit },
+        });
+
+        const lists = (data.items || []).map((list) => ({
+          id: list.guid,
+          name: list.name,
+        }));
+
+        return success(`Found ${lists.length} tasklists`, lists, response_format);
+      } catch (err) {
+        return error("Tasklist list failed", err);
+      }
+    }
+  );
+
+  // tasklist_get
+  server.registerTool(
+    "tasklist_get",
+    {
+      title: "Get Tasklist Details",
+      description: `Get details of a specific tasklist.
+
+Args:
+  - tasklist_id (string): Tasklist ID (required)
+  - response_format ('markdown' | 'json'): Output format
+
+Returns:
+  - Tasklist details including id, name, creator, members
+
+Example:
+  - tasklist_get tasklist_id=7XXXXXX`,
+      inputSchema: TasklistGetSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { tasklist_id, response_format } = params;
+
+        const data = await larkRequest<{
+          tasklist: {
+            guid?: string;
+            name?: string;
+            creator?: { id?: string; name?: string };
+            members?: Array<{ id?: string; name?: string; role?: string }>;
+          };
+        }>(`/task/v2/tasklists/${tasklist_id}`);
+
+        return success("Tasklist details", {
+          id: data.tasklist.guid,
+          name: data.tasklist.name,
+          creator: data.tasklist.creator?.name,
+          members: data.tasklist.members?.map((m) => m.name),
+        }, response_format);
+      } catch (err) {
+        return error("Tasklist get failed", err);
+      }
+    }
+  );
+
+  // tasklist_delete
+  server.registerTool(
+    "tasklist_delete",
+    {
+      title: "Delete Tasklist",
+      description: `Delete a tasklist.
+
+Args:
+  - tasklist_id (string): Tasklist ID (required)
+
+Returns:
+  - Success message
+
+Example:
+  - tasklist_delete tasklist_id=7XXXXXX`,
+      inputSchema: TasklistDeleteSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { tasklist_id } = params;
+
+        await larkRequest(`/task/v2/tasklists/${tasklist_id}`, {
+          method: "DELETE",
+        });
+
+        return success("Tasklist deleted", { tasklist_id });
+      } catch (err) {
+        return error("Tasklist deletion failed", err);
+      }
+    }
+  );
+
+  // tasklist_add_task
+  server.registerTool(
+    "tasklist_add_task",
+    {
+      title: "Add Task to Tasklist",
+      description: `Add an existing task to a tasklist.
+
+Args:
+  - tasklist_id (string): Tasklist ID (required)
+  - task_id (string): Task ID (required)
+
+Returns:
+  - Success message
+
+Example:
+  - tasklist_add_task tasklist_id=7XXXXXX task_id=7YYYYYY`,
+      inputSchema: TasklistAddTaskSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { tasklist_id, task_id } = params;
+
+        await larkRequest(`/task/v2/tasks/${task_id}/add_tasklist`, {
+          method: "POST",
+          body: { tasklist_guid: tasklist_id },
+        });
+
+        return success("Task added to tasklist", { tasklist_id, task_id });
+      } catch (err) {
+        return error("Add task to tasklist failed", err);
+      }
+    }
+  );
+
+  // tasklist_remove_task
+  server.registerTool(
+    "tasklist_remove_task",
+    {
+      title: "Remove Task from Tasklist",
+      description: `Remove a task from a tasklist.
+
+Args:
+  - tasklist_id (string): Tasklist ID (required)
+  - task_id (string): Task ID (required)
+
+Returns:
+  - Success message
+
+Example:
+  - tasklist_remove_task tasklist_id=7XXXXXX task_id=7YYYYYY`,
+      inputSchema: TasklistRemoveTaskSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { tasklist_id, task_id } = params;
+
+        await larkRequest(`/task/v2/tasks/${task_id}/remove_tasklist`, {
+          method: "POST",
+          body: { tasklist_guid: tasklist_id },
+        });
+
+        return success("Task removed from tasklist", { tasklist_id, task_id });
+      } catch (err) {
+        return error("Remove task from tasklist failed", err);
+      }
+    }
+  );
+
+  // tasklist_tasks
+  server.registerTool(
+    "tasklist_tasks",
+    {
+      title: "List Tasks in Tasklist",
+      description: `List all tasks in a specific tasklist.
+
+Args:
+  - tasklist_id (string): Tasklist ID (required)
+  - limit (number): Max results (default: 50)
+  - offset (number): Pagination offset (default: 0)
+  - response_format ('markdown' | 'json'): Output format
+
+Returns:
+  - List of tasks with id, summary, is_completed
+
+Example:
+  - tasklist_tasks tasklist_id=7XXXXXX`,
+      inputSchema: TasklistTasksSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { tasklist_id, limit, response_format } = params;
+
+        const data = await larkRequest<{
+          items?: Array<{
+            guid?: string;
+            summary?: string;
+            completed_at?: string;
+          }>;
+        }>(`/task/v2/tasklists/${tasklist_id}/tasks`, {
+          params: { page_size: limit },
+        });
+
+        const tasks = (data.items || []).map((task) => ({
+          id: task.guid,
+          summary: task.summary,
+          is_completed: !!task.completed_at,
+        }));
+
+        return success(`Found ${tasks.length} tasks in tasklist`, tasks, response_format);
+      } catch (err) {
+        return error("Tasklist tasks failed", err);
+      }
+    }
+  );
 }
