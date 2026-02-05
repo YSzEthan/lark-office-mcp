@@ -35,11 +35,21 @@ export interface PaginatedResponse<T> {
 /**
  * Lark Block 類型定義
  */
+/**
+ * Lark Block 類型定義
+ *
+ * Block Type 對照表（依據官方 SDK）：
+ * 1=Page, 2=Text, 3-11=Heading1-9, 12=Bullet, 13=Ordered,
+ * 14=Code, 15=Quote, 16=Equation, 17=Todo, 18=Bitable,
+ * 19=Callout, 20=ChatCard, 21=Diagram, 22=Divider, 23=File,
+ * 24=Grid, 25=GridColumn, 26=Iframe, 27=Image, ...
+ */
 export interface LarkBlock {
   block_id: string;
   block_type: number;
   parent_id?: string;
   children?: string[];
+  // 基本內容類型
   text?: LarkTextContent;
   heading1?: LarkTextContent;
   heading2?: LarkTextContent;
@@ -52,13 +62,18 @@ export interface LarkBlock {
   heading9?: LarkTextContent;
   bullet?: LarkTextContent;
   ordered?: LarkTextContent;
-  code?: LarkTextContent & { language?: number };
   quote?: LarkTextContent;
   todo?: LarkTextContent & { done?: boolean };
-  divider?: Record<string, never>;
-  image?: { token?: string };
-  table?: { rows?: number; columns?: number };
+  // 特殊內容類型
+  code?: LarkTextContent & { language?: number };
+  equation?: LarkTextContent;
   callout?: LarkTextContent & { background_color?: number; emoji_id?: string };
+  // 結構類型
+  divider?: Record<string, never>;
+  table?: { rows?: number; columns?: number };
+  // 媒體類型
+  file?: { token?: string; name?: string };
+  image?: { token?: string; width?: number; height?: number };
 }
 
 export interface LarkTextContent {

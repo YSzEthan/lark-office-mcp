@@ -67,10 +67,13 @@ const MARKDOWN_PATTERNS: Array<{
   regex: RegExp;
   toBlock: (match: RegExpMatchArray, line: string) => Record<string, unknown>;
 }> = [
-  // 標題 H1-H6
-  { regex: /^###### (.+)$/, toBlock: (m) => ({ block_type: 11, heading6: parseInlineStyles(m[1]) }) },
-  { regex: /^##### (.+)$/, toBlock: (m) => ({ block_type: 10, heading5: parseInlineStyles(m[1]) }) },
-  { regex: /^#### (.+)$/, toBlock: (m) => ({ block_type: 9, heading4: parseInlineStyles(m[1]) }) },
+  // 標題 H1-H9（Lark 支援 9 級標題）
+  { regex: /^######### (.+)$/, toBlock: (m) => ({ block_type: 11, heading9: parseInlineStyles(m[1]) }) },
+  { regex: /^######## (.+)$/, toBlock: (m) => ({ block_type: 10, heading8: parseInlineStyles(m[1]) }) },
+  { regex: /^####### (.+)$/, toBlock: (m) => ({ block_type: 9, heading7: parseInlineStyles(m[1]) }) },
+  { regex: /^###### (.+)$/, toBlock: (m) => ({ block_type: 8, heading6: parseInlineStyles(m[1]) }) },
+  { regex: /^##### (.+)$/, toBlock: (m) => ({ block_type: 7, heading5: parseInlineStyles(m[1]) }) },
+  { regex: /^#### (.+)$/, toBlock: (m) => ({ block_type: 6, heading4: parseInlineStyles(m[1]) }) },
   { regex: /^### (.+)$/, toBlock: (m) => ({ block_type: 5, heading3: parseInlineStyles(m[1]) }) },
   { regex: /^## (.+)$/, toBlock: (m) => ({ block_type: 4, heading2: parseInlineStyles(m[1]) }) },
   { regex: /^# (.+)$/, toBlock: (m) => ({ block_type: 3, heading1: parseInlineStyles(m[1]) }) },
@@ -278,14 +281,23 @@ export function blocksToMarkdown(blocks: LarkBlock[]): string {
       case 5: // Heading3
         lines.push(`### ${extractText(block.heading3)}`);
         break;
-      case 9: // Heading4
+      case 6: // Heading4
         lines.push(`#### ${extractText(block.heading4)}`);
         break;
-      case 10: // Heading5
+      case 7: // Heading5
         lines.push(`##### ${extractText(block.heading5)}`);
         break;
-      case 11: // Heading6
+      case 8: // Heading6
         lines.push(`###### ${extractText(block.heading6)}`);
+        break;
+      case 9: // Heading7
+        lines.push(`####### ${extractText(block.heading7)}`);
+        break;
+      case 10: // Heading8
+        lines.push(`######## ${extractText(block.heading8)}`);
+        break;
+      case 11: // Heading9
+        lines.push(`######### ${extractText(block.heading9)}`);
         break;
       case 12: // Bullet
         lines.push(`- ${extractText(block.bullet)}`);
@@ -293,29 +305,37 @@ export function blocksToMarkdown(blocks: LarkBlock[]): string {
       case 13: // Ordered
         lines.push(`1. ${extractText(block.ordered)}`);
         break;
-      case 15: // Quote
-        lines.push(`> ${extractText(block.quote)}`);
-        break;
-      case 17: // Todo
-        const checked = block.todo?.done ? "x" : " ";
-        lines.push(`- [${checked}] ${extractText(block.todo)}`);
-        break;
-      case 19: // Divider
-        lines.push("---");
-        break;
-      case 22: // Code
+      case 14: // Code
         const lang = getLanguageName(block.code?.language);
         lines.push(`\`\`\`${lang}`);
         lines.push(extractText(block.code));
         lines.push("```");
         break;
-      case 23: // Image
+      case 15: // Quote
+        lines.push(`> ${extractText(block.quote)}`);
+        break;
+      case 16: // Equation
+        lines.push(`$$${extractText(block.equation)}$$`);
+        break;
+      case 17: // Todo
+        const checked = block.todo?.done ? "x" : " ";
+        lines.push(`- [${checked}] ${extractText(block.todo)}`);
+        break;
+      case 19: // Callout（高亮塊）
+        lines.push(`> 💡 ${extractText(block.callout)}`);
+        break;
+      case 22: // Divider（分割線）
+        lines.push("---");
+        break;
+      case 23: // File（文件）
+        if (block.file?.token) {
+          lines.push(`📎 [file](lark://file/${block.file.token})`);
+        }
+        break;
+      case 27: // Image（圖片）
         if (block.image?.token) {
           lines.push(`![image](lark://image/${block.image.token})`);
         }
-        break;
-      case 27: // Callout
-        lines.push(`> 💡 ${extractText(block.callout)}`);
         break;
       default:
         // 未知類型，嘗試提取文字
