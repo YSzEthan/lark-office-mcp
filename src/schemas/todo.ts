@@ -153,6 +153,78 @@ export const TasklistRemoveTaskSchema = TasklistIdSchema.merge(TaskIdSchema);
  */
 export const TasklistTasksSchema = TasklistIdSchema.merge(PaginationSchema).merge(ResponseFormatSchema);
 
+/**
+ * 子任務父任務 ID 參數
+ */
+export const SubtaskParentSchema = z.object({
+  parent_task_id: z
+    .string()
+    .min(1)
+    .describe("Parent task ID (required)"),
+});
+
+/**
+ * 建立子任務
+ */
+export const SubtaskCreateSchema = SubtaskParentSchema.extend({
+  summary: z
+    .string()
+    .min(1)
+    .max(500)
+    .describe("Subtask summary (required)"),
+  members: z
+    .array(z.string())
+    .optional()
+    .describe("Assignee user IDs (open_id or user_id)"),
+  start_time: z
+    .string()
+    .optional()
+    .describe("Start time in ISO 8601 format (e.g., 2024-12-01T09:00:00+08:00)"),
+  due_time: z
+    .string()
+    .optional()
+    .describe("Due time in ISO 8601 format (e.g., 2024-12-31T23:59:59+08:00)"),
+}).merge(ResponseFormatSchema);
+
+/**
+ * 列出子任務
+ */
+export const SubtaskListSchema = SubtaskParentSchema.merge(PaginationSchema).merge(ResponseFormatSchema);
+
+/**
+ * 更新子任務
+ */
+export const SubtaskUpdateSchema = TaskIdSchema.extend({
+  summary: z
+    .string()
+    .min(1)
+    .max(500)
+    .optional()
+    .describe("New subtask summary"),
+  members: z
+    .array(z.string())
+    .optional()
+    .describe("New assignee user IDs (open_id or user_id)"),
+  start_time: z
+    .string()
+    .optional()
+    .describe("New start time in ISO 8601 format"),
+  due_time: z
+    .string()
+    .optional()
+    .describe("New due time in ISO 8601 format"),
+});
+
+/**
+ * 完成子任務（使用與一般任務相同的 TaskIdSchema）
+ */
+export const SubtaskCompleteSchema = TaskIdSchema;
+
+/**
+ * 刪除子任務（使用與一般任務相同的 TaskIdSchema）
+ */
+export const SubtaskDeleteSchema = TaskIdSchema;
+
 // 型別匯出
 export type TodoCreateInput = z.infer<typeof TodoCreateSchema>;
 export type TodoListInput = z.infer<typeof TodoListSchema>;
@@ -168,3 +240,8 @@ export type TasklistDeleteInput = z.infer<typeof TasklistDeleteSchema>;
 export type TasklistAddTaskInput = z.infer<typeof TasklistAddTaskSchema>;
 export type TasklistRemoveTaskInput = z.infer<typeof TasklistRemoveTaskSchema>;
 export type TasklistTasksInput = z.infer<typeof TasklistTasksSchema>;
+export type SubtaskCreateInput = z.infer<typeof SubtaskCreateSchema>;
+export type SubtaskListInput = z.infer<typeof SubtaskListSchema>;
+export type SubtaskUpdateInput = z.infer<typeof SubtaskUpdateSchema>;
+export type SubtaskCompleteInput = z.infer<typeof SubtaskCompleteSchema>;
+export type SubtaskDeleteInput = z.infer<typeof SubtaskDeleteSchema>;

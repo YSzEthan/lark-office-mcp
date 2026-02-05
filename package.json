@@ -1,6 +1,6 @@
 {
   "name": "lark-mcp-server",
-  "version": "3.3.0",
+  "version": "3.4.0",
   "description": "MCP server for Lark/Feishu API - Wiki, Documents, Tasks",
   "type": "module",
   "main": "src/index.ts",

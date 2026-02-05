@@ -18,6 +18,11 @@ import {
   TasklistAddTaskSchema,
   TasklistRemoveTaskSchema,
   TasklistTasksSchema,
+  SubtaskCreateSchema,
+  SubtaskListSchema,
+  SubtaskUpdateSchema,
+  SubtaskCompleteSchema,
+  SubtaskDeleteSchema,
 } from "../schemas/index.js";
 import { larkRequest } from "../services/lark-client.js";
 import { success, error, simplifyTodo, simplifyTodoList } from "../utils/response.js";
@@ -718,6 +723,339 @@ Example:
         return success(`Found ${tasks.length} tasks in tasklist`, tasks, response_format);
       } catch (err) {
         return error("Tasklist tasks failed", err);
+      }
+    }
+  );
+
+  // subtask_create
+  server.registerTool(
+    "subtask_create",
+    {
+      title: "Create Subtask",
+      description: `建立子任務。
+
+Args:
+  - parent_task_id (string): 父任務 ID（必填）
+  - summary (string): 子任務摘要（必填）
+  - members (string[]): 負責人 ID 清單（open_id 或 user_id）
+  - start_time (string): 開始時間（ISO 8601 格式）
+  - due_time (string): 截止時間（ISO 8601 格式）
+  - response_format ('markdown' | 'json'): 輸出格式
+
+Returns:
+  - 子任務 ID、摘要、負責人、時間
+
+Example:
+  - subtask_create parent_task_id=7XXXXXX summary="完成報告初稿"
+  - subtask_create parent_task_id=7XXXXXX summary="審核文件" members=["ou_xxx"] due_time="2024-12-31T18:00:00+08:00"`,
+      inputSchema: SubtaskCreateSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { parent_task_id, summary, members, start_time, due_time, response_format } = params;
+
+        const body: Record<string, unknown> = { summary };
+
+        // 負責人
+        if (members && members.length > 0) {
+          body.members = members.map((id) => ({ id, type: "user" }));
+        }
+
+        // 開始時間
+        if (start_time) {
+          body.start = {
+            timestamp: Math.floor(new Date(start_time).getTime() / 1000).toString(),
+            is_all_day: false,
+          };
+        }
+
+        // 截止時間
+        if (due_time) {
+          body.due = {
+            timestamp: Math.floor(new Date(due_time).getTime() / 1000).toString(),
+            is_all_day: false,
+          };
+        }
+
+        const data = await larkRequest<{
+          subtask: {
+            guid: string;
+            summary: string;
+            members?: Array<{ id?: string; name?: string }>;
+            start?: { timestamp?: string };
+            due?: { timestamp?: string };
+          };
+        }>(`/task/v2/tasks/${parent_task_id}/subtasks`, {
+          method: "POST",
+          body,
+        });
+
+        const result: Record<string, unknown> = {
+          id: data.subtask.guid,
+          summary: data.subtask.summary,
+          parent_task_id,
+        };
+
+        if (data.subtask.members?.length) {
+          result.members = data.subtask.members.map((m) => m.name || m.id);
+        }
+        if (data.subtask.start?.timestamp) {
+          result.start_time = new Date(parseInt(data.subtask.start.timestamp) * 1000).toISOString();
+        }
+        if (data.subtask.due?.timestamp) {
+          result.due_time = new Date(parseInt(data.subtask.due.timestamp) * 1000).toISOString();
+        }
+
+        return success("子任務已建立", result, response_format);
+      } catch (err) {
+        return error("建立子任務失敗", err);
+      }
+    }
+  );
+
+  // subtask_list
+  server.registerTool(
+    "subtask_list",
+    {
+      title: "List Subtasks",
+      description: `列出父任務的所有子任務。
+
+Args:
+  - parent_task_id (string): 父任務 ID（必填）
+  - limit (number): 最大結果數（預設 50）
+  - offset (number): 分頁偏移量（預設 0）
+  - response_format ('markdown' | 'json'): 輸出格式
+
+Returns:
+  - 子任務清單，包含 id、summary、members、start_time、due_time、is_completed
+
+Example:
+  - subtask_list parent_task_id=7XXXXXX`,
+      inputSchema: SubtaskListSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { parent_task_id, limit, response_format } = params;
+
+        const data = await larkRequest<{
+          items?: Array<{
+            guid?: string;
+            summary?: string;
+            members?: Array<{ id?: string; name?: string }>;
+            start?: { timestamp?: string };
+            due?: { timestamp?: string };
+            completed_at?: string;
+          }>;
+          page_token?: string;
+          has_more?: boolean;
+        }>(`/task/v2/tasks/${parent_task_id}/subtasks`, {
+          params: { page_size: limit },
+        });
+
+        const subtasks = (data.items || []).map((subtask) => {
+          const item: Record<string, unknown> = {
+            id: subtask.guid,
+            summary: subtask.summary,
+            is_completed: !!subtask.completed_at,
+          };
+
+          if (subtask.members?.length) {
+            item.members = subtask.members.map((m) => m.name || m.id);
+          }
+          if (subtask.start?.timestamp) {
+            item.start_time = new Date(parseInt(subtask.start.timestamp) * 1000).toISOString();
+          }
+          if (subtask.due?.timestamp) {
+            item.due_time = new Date(parseInt(subtask.due.timestamp) * 1000).toISOString();
+          }
+
+          return item;
+        });
+
+        let message = `找到 ${subtasks.length} 個子任務`;
+        if (data.has_more) {
+          message += "（還有更多）";
+        }
+
+        return success(message, subtasks, response_format);
+      } catch (err) {
+        return error("列出子任務失敗", err);
+      }
+    }
+  );
+
+  // subtask_update
+  server.registerTool(
+    "subtask_update",
+    {
+      title: "Update Subtask",
+      description: `更新子任務。
+
+Args:
+  - task_id (string): 子任務 ID（必填）
+  - summary (string): 新摘要
+  - members (string[]): 新負責人 ID 清單（open_id 或 user_id）
+  - start_time (string): 新開始時間（ISO 8601 格式）
+  - due_time (string): 新截止時間（ISO 8601 格式）
+
+至少需要提供一個更新欄位。
+
+Returns:
+  - 成功訊息與更新的欄位
+
+Example:
+  - subtask_update task_id=7XXXXXX summary="更新後的標題"
+  - subtask_update task_id=7XXXXXX due_time="2024-12-31T18:00:00+08:00"
+  - subtask_update task_id=7XXXXXX members=["ou_xxx"]`,
+      inputSchema: SubtaskUpdateSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { task_id, summary, members, start_time, due_time } = params;
+
+        if (!summary && !members && !start_time && !due_time) {
+          return error("至少需要提供一個更新欄位（summary、members、start_time 或 due_time）");
+        }
+
+        const taskBody: Record<string, unknown> = {};
+        const updateFields: string[] = [];
+
+        if (summary) {
+          taskBody.summary = summary;
+          updateFields.push("summary");
+        }
+
+        if (members) {
+          taskBody.members = members.map((id) => ({ id, type: "user" }));
+          updateFields.push("members");
+        }
+
+        if (start_time) {
+          taskBody.start = {
+            timestamp: Math.floor(new Date(start_time).getTime() / 1000).toString(),
+            is_all_day: false,
+          };
+          updateFields.push("start");
+        }
+
+        if (due_time) {
+          taskBody.due = {
+            timestamp: Math.floor(new Date(due_time).getTime() / 1000).toString(),
+            is_all_day: false,
+          };
+          updateFields.push("due");
+        }
+
+        await larkRequest(`/task/v2/tasks/${task_id}`, {
+          method: "PATCH",
+          body: {
+            task: taskBody,
+            update_fields: updateFields,
+          },
+        });
+
+        return success("子任務已更新", { task_id, updated_fields: updateFields });
+      } catch (err) {
+        return error("更新子任務失敗", err);
+      }
+    }
+  );
+
+  // subtask_complete
+  server.registerTool(
+    "subtask_complete",
+    {
+      title: "Complete Subtask",
+      description: `將子任務標記為已完成。
+
+Args:
+  - task_id (string): 子任務 ID（必填）
+
+Returns:
+  - 成功訊息
+
+Example:
+  - subtask_complete task_id=7XXXXXX`,
+      inputSchema: SubtaskCompleteSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { task_id } = params;
+        const completedAt = Math.floor(Date.now() / 1000).toString();
+
+        await larkRequest(`/task/v2/tasks/${task_id}`, {
+          method: "PATCH",
+          body: {
+            task: { completed_at: completedAt },
+            update_fields: ["completed_at"],
+          },
+        });
+
+        return success("子任務已完成", { task_id });
+      } catch (err) {
+        return error("完成子任務失敗", err);
+      }
+    }
+  );
+
+  // subtask_delete
+  server.registerTool(
+    "subtask_delete",
+    {
+      title: "Delete Subtask",
+      description: `刪除子任務。
+
+Args:
+  - task_id (string): 子任務 ID（必填）
+
+Returns:
+  - 成功訊息
+
+Example:
+  - subtask_delete task_id=7XXXXXX`,
+      inputSchema: SubtaskDeleteSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { task_id } = params;
+
+        await larkRequest(`/task/v2/tasks/${task_id}`, {
+          method: "DELETE",
+        });
+
+        return success("子任務已刪除", { task_id });
+      } catch (err) {
+        return error("刪除子任務失敗", err);
       }
     }
   );
