@@ -14,6 +14,15 @@ export const MAX_PAGE_SIZE = 100;
 // 批次處理
 export const BATCH_SIZE = 10;
 
+// Rate Limiting（基於官方文件：單一應用 QPS 3 次/秒）
+export const RATE_LIMIT_QPS = 3;
+export const RATE_LIMIT_INTERVAL_MS = 350; // 略高於 1000/3 以確保安全
+
+// Retry Configuration
+export const RETRY_MAX_ATTEMPTS = 3;
+export const RETRY_BASE_DELAY_MS = 1000;
+export const RETRY_MAX_DELAY_MS = 10000;
+
 // Token 檔案路徑
 export const TOKEN_FILE_NAME = ".lark-token.json";
 

@@ -7,7 +7,10 @@ import { readFileSync, writeFileSync, existsSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
 import { BASE_URL, REDIRECT_URI, TOKEN_FILE_NAME, setLarkBaseUrl, BATCH_SIZE } from "../constants.js";
-import type { TokenData, LarkBlock, LarkApiError } from "../types.js";
+import type { TokenData, LarkBlock } from "../types.js";
+import { LarkError } from "../utils/errors.js";
+import { globalRateLimiter, documentRateLimiter } from "../utils/rate-limiter.js";
+import { withRetryAndRefresh } from "../utils/retry.js";
 
 // 環境變數
 const LARK_APP_ID = process.env.LARK_APP_ID || "";
@@ -313,15 +316,24 @@ export async function getAccessToken(): Promise<string> {
 }
 
 /**
- * Lark API 請求
+ * Lark API 請求選項
  */
-export async function larkRequest<T = unknown>(
+export interface LarkRequestOptions {
+  method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
+  body?: unknown;
+  params?: Record<string, string | number>;
+  /** 跳過 Rate Limiting（當已由 documentRateLimiter 處理時使用） */
+  skipRateLimit?: boolean;
+  /** 跳過重試機制 */
+  skipRetry?: boolean;
+}
+
+/**
+ * Lark API 請求（內部實作）
+ */
+async function executeRequest<T>(
   endpoint: string,
-  options: {
-    method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
-    body?: unknown;
-    params?: Record<string, string | number>;
-  } = {}
+  options: LarkRequestOptions
 ): Promise<T> {
   const token = await getAccessToken();
   const { method = "GET", body, params } = options;
@@ -362,10 +374,49 @@ export async function larkRequest<T = unknown>(
   }
 
   if (data.code !== 0) {
-    throw new Error(`Lark API error [${data.code}]: ${data.msg}`);
+    // 使用 LarkError 提供結構化錯誤資訊
+    throw new LarkError(data.code, data.msg, endpoint);
   }
 
   return data.data as T;
+}
+
+/**
+ * Lark API 請求
+ * 整合 Rate Limiting 和重試機制
+ */
+export async function larkRequest<T = unknown>(
+  endpoint: string,
+  options: LarkRequestOptions = {}
+): Promise<T> {
+  // 建立執行函數
+  const execute = () => executeRequest<T>(endpoint, options);
+
+  // 套用 Rate Limiting
+  const rateLimitedRequest = options.skipRateLimit
+    ? execute
+    : () => globalRateLimiter.throttle(execute);
+
+  // 跳過重試機制
+  if (options.skipRetry) {
+    return rateLimitedRequest();
+  }
+
+  // 套用重試機制（包含 Token 自動刷新）
+  return withRetryAndRefresh(
+    rateLimitedRequest,
+    async () => {
+      // 嘗試刷新 Token
+      if (cachedToken?.refreshToken) {
+        await refreshAccessToken(cachedToken.refreshToken);
+      }
+    },
+    {
+      onRetry: (attempt, error, delay) => {
+        console.error(`[Lark API] Retry ${attempt} for ${endpoint} after ${delay}ms: ${error.message}`);
+      },
+    }
+  );
 }
 
 /**
@@ -442,6 +493,7 @@ export async function getDocumentRootBlockId(documentId: string): Promise<string
 
 /**
  * 批量插入 blocks (帶自動分批)
+ * 使用文件級 Rate Limiter 避免同一文件的並發編輯衝突
  */
 export async function insertBlocks(
   documentId: string,
@@ -453,13 +505,17 @@ export async function insertBlocks(
   for (let i = 0; i < blocks.length; i += batchSize) {
     const batch = blocks.slice(i, i + batchSize);
 
-    await larkRequest(`/docx/v1/documents/${documentId}/blocks/${parentBlockId}/children`, {
-      method: "POST",
-      body: {
-        children: batch,
-        index: index + i,
-        document_revision_id: -1,
-      },
+    // 使用文件級 Rate Limiter 控制同一文件的編輯頻率
+    await documentRateLimiter.throttle(documentId, async () => {
+      await larkRequest(`/docx/v1/documents/${documentId}/blocks/${parentBlockId}/children`, {
+        method: "POST",
+        body: {
+          children: batch,
+          index: index + i,
+          document_revision_id: -1,
+        },
+        skipRateLimit: true, // 已由 documentRateLimiter 處理
+      });
     });
   }
 }

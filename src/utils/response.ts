@@ -4,6 +4,7 @@
 
 import { CHARACTER_LIMIT, ResponseFormat } from "../constants.js";
 import type { ToolResponse, PaginatedResponse } from "../types.js";
+import { LarkError, formatLarkError } from "./errors.js";
 
 /**
  * 建立成功回應
@@ -42,12 +43,16 @@ export function success(
 
 /**
  * 建立錯誤回應
+ * 符合 MCP Best Practices：結構化錯誤訊息、包含建議
  */
 export function error(message: string, details?: unknown): ToolResponse {
   let text = `Error: ${message}`;
 
   if (details) {
-    if (details instanceof Error) {
+    if (details instanceof LarkError) {
+      // 使用結構化格式化（符合 MCP Best Practices）
+      text += `\n\n${formatLarkError(details)}`;
+    } else if (details instanceof Error) {
       text += `\n\nDetails: ${details.message}`;
       // 提供具體建議
       text += getSuggestion(details.message);

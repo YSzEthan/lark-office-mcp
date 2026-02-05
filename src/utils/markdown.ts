@@ -87,8 +87,8 @@ const MARKDOWN_PATTERNS: Array<{
   // 引用
   { regex: /^>\s?(.*)$/, toBlock: (m) => ({ block_type: 15, quote: textElement(m[1] || "") }) },
 
-  // 分隔線（Lark API 不支援建立 divider，轉換為視覺分隔線）
-  { regex: /^(-{3,}|_{3,}|\*{3,})$/, toBlock: () => ({ block_type: 2, text: textElement("─────────────────────────────") }) },
+  // 分隔線
+  { regex: /^(-{3,}|_{3,}|\*{3,})$/, toBlock: () => ({ block_type: 22, divider: {} }) },
 ];
 
 /**
@@ -109,15 +109,12 @@ export function markdownToBlocks(markdown: string): Array<Record<string, unknown
         codeLanguage = line.slice(3).trim();
         codeContent = [];
       } else {
-        // 結束程式碼區塊（Lark API 不支援建立 code block，改用 inline_code 文字）
-        const langLabel = codeLanguage ? `[${codeLanguage}]` : "[code]";
+        // 結束程式碼區塊
         blocks.push({
-          block_type: 2,
-          text: {
-            elements: [
-              { text_run: { content: `${langLabel}\n`, text_element_style: { bold: true } } },
-              { text_run: { content: codeContent.join("\n"), text_element_style: { inline_code: true } } },
-            ],
+          block_type: 14,
+          code: {
+            elements: [{ text_run: { content: codeContent.join("\n") } }],
+            language: getLanguageCode(codeLanguage),
           },
         });
         inCodeBlock = false;
