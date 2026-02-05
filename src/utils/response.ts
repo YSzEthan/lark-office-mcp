@@ -21,7 +21,8 @@ export function success(
     if (typeof data === "string") {
       text += `\n\n${data}`;
     } else {
-      structuredContent = data;
+      // MCP structuredContent 必須是 object，不能是 array
+      structuredContent = Array.isArray(data) ? { items: data } : data;
       if (format === ResponseFormat.MARKDOWN) {
         text += `\n\n${formatAsMarkdown(data)}`;
       } else {

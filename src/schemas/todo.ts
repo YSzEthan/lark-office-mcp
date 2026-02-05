@@ -122,6 +122,18 @@ export const TasklistListSchema = PaginationSchema.merge(ResponseFormatSchema);
 export const TasklistGetSchema = TasklistIdSchema.merge(ResponseFormatSchema);
 
 /**
+ * 更新任務清單
+ */
+export const TasklistUpdateSchema = TasklistIdSchema.extend({
+  name: z
+    .string()
+    .min(1)
+    .max(200)
+    .optional()
+    .describe("New tasklist name"),
+});
+
+/**
  * 刪除任務清單
  */
 export const TasklistDeleteSchema = TasklistIdSchema;
@@ -151,6 +163,7 @@ export type TodoDeleteInput = z.infer<typeof TodoDeleteSchema>;
 export type TasklistCreateInput = z.infer<typeof TasklistCreateSchema>;
 export type TasklistListInput = z.infer<typeof TasklistListSchema>;
 export type TasklistGetInput = z.infer<typeof TasklistGetSchema>;
+export type TasklistUpdateInput = z.infer<typeof TasklistUpdateSchema>;
 export type TasklistDeleteInput = z.infer<typeof TasklistDeleteSchema>;
 export type TasklistAddTaskInput = z.infer<typeof TasklistAddTaskSchema>;
 export type TasklistRemoveTaskInput = z.infer<typeof TasklistRemoveTaskSchema>;

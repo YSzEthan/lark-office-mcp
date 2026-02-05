@@ -13,6 +13,7 @@ import {
   TasklistCreateSchema,
   TasklistListSchema,
   TasklistGetSchema,
+  TasklistUpdateSchema,
   TasklistDeleteSchema,
   TasklistAddTaskSchema,
   TasklistRemoveTaskSchema,
@@ -494,6 +495,58 @@ Example:
         }, response_format);
       } catch (err) {
         return error("Tasklist get failed", err);
+      }
+    }
+  );
+
+  // tasklist_update
+  server.registerTool(
+    "tasklist_update",
+    {
+      title: "Update Tasklist",
+      description: `Update a tasklist's name.
+
+Args:
+  - tasklist_id (string): Tasklist ID (required)
+  - name (string): New tasklist name (optional)
+
+Returns:
+  - Success message with updated tasklist info
+
+Example:
+  - tasklist_update tasklist_id=7XXXXXX name="New Name"`,
+      inputSchema: TasklistUpdateSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { tasklist_id, name } = params;
+
+        if (!name) {
+          return error("Name is required for update");
+        }
+
+        const data = await larkRequest<{
+          tasklist: { guid: string; name: string };
+        }>(`/task/v2/tasklists/${tasklist_id}`, {
+          method: "PATCH",
+          body: {
+            tasklist: { name },
+            update_fields: ["name"],
+          },
+        });
+
+        return success("Tasklist updated", {
+          id: data.tasklist.guid,
+          name: data.tasklist.name,
+        });
+      } catch (err) {
+        return error("Tasklist update failed", err);
       }
     }
   );
