@@ -21,8 +21,6 @@ import {
   SubtaskCreateSchema,
   SubtaskListSchema,
   SubtaskUpdateSchema,
-  SubtaskCompleteSchema,
-  SubtaskDeleteSchema,
 } from "../schemas/index.js";
 import { larkRequest } from "../services/lark-client.js";
 import { success, error, simplifyTodo, simplifyTodoList } from "../utils/response.js";
@@ -36,19 +34,9 @@ export function registerTodoTools(server: McpServer): void {
     "todo_create",
     {
       title: "Create Task",
-      description: `Create a new task/todo.
+      description: `建立待辦事項。回傳 id、summary。
 
-Args:
-  - summary (string): Task summary (required)
-  - description (string): Detailed description (optional)
-  - due_time (string): Due time in ISO 8601 format (optional)
-
-Returns:
-  - Task ID and summary
-
-Example:
-  - todo_create summary="Review PR"
-  - todo_create summary="Submit report" due_time="2024-12-31T23:59:59+08:00"`,
+Example: todo_create summary="Review PR"`,
       inputSchema: TodoCreateSchema,
       annotations: {
         readOnlyHint: false,
@@ -92,20 +80,9 @@ Example:
     "todo_list",
     {
       title: "List Tasks",
-      description: `List tasks/todos.
+      description: `列出待辦事項。回傳 id、summary、due_time、is_completed。
 
-Args:
-  - completed (boolean): List only completed tasks (default: false)
-  - limit (number): Max results (default: 50)
-  - offset (number): Pagination offset (default: 0)
-  - response_format ('markdown' | 'json'): Output format
-
-Returns:
-  - List of tasks with id, summary, due_time, is_completed
-
-Example:
-  - todo_list
-  - todo_list completed=true`,
+Example: todo_list completed=true`,
       inputSchema: TodoListSchema,
       annotations: {
         readOnlyHint: true,
@@ -155,19 +132,9 @@ Example:
     "todo_search",
     {
       title: "Search Tasks",
-      description: `Search tasks/todos by keyword.
+      description: `搜尋待辦事項。回傳符合關鍵字的任務清單。
 
-Args:
-  - query (string): Search keyword (required)
-  - completed (boolean): Search only completed tasks (optional)
-  - limit (number): Max results (default: 50)
-  - response_format ('markdown' | 'json'): Output format
-
-Returns:
-  - List of matching tasks
-
-Example:
-  - todo_search query="meeting"`,
+Example: todo_search query="meeting"`,
       inputSchema: TodoSearchSchema,
       annotations: {
         readOnlyHint: true,
@@ -213,21 +180,14 @@ Example:
     }
   );
 
-  // todo_complete
+  // task_complete（可處理任務和子任務）
   server.registerTool(
-    "todo_complete",
+    "task_complete",
     {
       title: "Complete Task",
-      description: `Mark a task as completed.
+      description: `將任務或子任務標記為已完成。適用於 todo 和 subtask。
 
-Args:
-  - task_id (string): Task ID (required)
-
-Returns:
-  - Success message
-
-Example:
-  - todo_complete task_id=7XXXXXX`,
+Example: task_complete task_id=7XXXXXX`,
       inputSchema: TodoCompleteSchema,
       annotations: {
         readOnlyHint: false,
@@ -261,21 +221,9 @@ Example:
     "todo_update",
     {
       title: "Update Task",
-      description: `Update a task's details.
+      description: `更新待辦事項。至少需提供一個更新欄位。
 
-Args:
-  - task_id (string): Task ID (required)
-  - summary (string): New summary (optional)
-  - description (string): New description (optional)
-  - due_time (string): New due time in ISO 8601 format (optional)
-
-At least one of summary, description, or due_time must be provided.
-
-Returns:
-  - Success message with updated fields
-
-Example:
-  - todo_update task_id=7XXXXXX summary="Updated title"`,
+Example: todo_update task_id=7XXXXXX summary="Updated"`,
       inputSchema: TodoUpdateSchema,
       annotations: {
         readOnlyHint: false,
@@ -326,21 +274,14 @@ Example:
     }
   );
 
-  // todo_delete
+  // task_delete（可處理任務和子任務）
   server.registerTool(
-    "todo_delete",
+    "task_delete",
     {
       title: "Delete Task",
-      description: `Delete a task.
+      description: `刪除任務或子任務。適用於 todo 和 subtask。
 
-Args:
-  - task_id (string): Task ID (required)
-
-Returns:
-  - Success message
-
-Example:
-  - todo_delete task_id=7XXXXXX`,
+Example: task_delete task_id=7XXXXXX`,
       inputSchema: TodoDeleteSchema,
       annotations: {
         readOnlyHint: false,
@@ -369,16 +310,9 @@ Example:
     "tasklist_create",
     {
       title: "Create Tasklist",
-      description: `Create a new tasklist (container for tasks).
+      description: `建立任務清單（任務容器）。回傳 id、name。
 
-Args:
-  - name (string): Tasklist name (required)
-
-Returns:
-  - Tasklist ID and name
-
-Example:
-  - tasklist_create name="Project Tasks"`,
+Example: tasklist_create name="Project Tasks"`,
       inputSchema: TasklistCreateSchema,
       annotations: {
         readOnlyHint: false,
@@ -413,18 +347,9 @@ Example:
     "tasklist_list",
     {
       title: "List Tasklists",
-      description: `List all tasklists.
+      description: `列出所有任務清單。回傳 id、name。
 
-Args:
-  - limit (number): Max results (default: 50)
-  - offset (number): Pagination offset (default: 0)
-  - response_format ('markdown' | 'json'): Output format
-
-Returns:
-  - List of tasklists with id and name
-
-Example:
-  - tasklist_list`,
+Example: tasklist_list`,
       inputSchema: TasklistListSchema,
       annotations: {
         readOnlyHint: true,
@@ -460,17 +385,9 @@ Example:
     "tasklist_get",
     {
       title: "Get Tasklist Details",
-      description: `Get details of a specific tasklist.
+      description: `取得任務清單詳情。回傳 id、name、creator、members。
 
-Args:
-  - tasklist_id (string): Tasklist ID (required)
-  - response_format ('markdown' | 'json'): Output format
-
-Returns:
-  - Tasklist details including id, name, creator, members
-
-Example:
-  - tasklist_get tasklist_id=7XXXXXX`,
+Example: tasklist_get tasklist_id=7XXXXXX`,
       inputSchema: TasklistGetSchema,
       annotations: {
         readOnlyHint: true,
@@ -509,17 +426,9 @@ Example:
     "tasklist_update",
     {
       title: "Update Tasklist",
-      description: `Update a tasklist's name.
+      description: `更新任務清單名稱。回傳 id、name。
 
-Args:
-  - tasklist_id (string): Tasklist ID (required)
-  - name (string): New tasklist name (optional)
-
-Returns:
-  - Success message with updated tasklist info
-
-Example:
-  - tasklist_update tasklist_id=7XXXXXX name="New Name"`,
+Example: tasklist_update tasklist_id=7XXXXXX name="New Name"`,
       inputSchema: TasklistUpdateSchema,
       annotations: {
         readOnlyHint: false,
@@ -561,16 +470,9 @@ Example:
     "tasklist_delete",
     {
       title: "Delete Tasklist",
-      description: `Delete a tasklist.
+      description: `刪除任務清單。
 
-Args:
-  - tasklist_id (string): Tasklist ID (required)
-
-Returns:
-  - Success message
-
-Example:
-  - tasklist_delete tasklist_id=7XXXXXX`,
+Example: tasklist_delete tasklist_id=7XXXXXX`,
       inputSchema: TasklistDeleteSchema,
       annotations: {
         readOnlyHint: false,
@@ -599,17 +501,9 @@ Example:
     "tasklist_add_task",
     {
       title: "Add Task to Tasklist",
-      description: `Add an existing task to a tasklist.
+      description: `將任務加入任務清單。
 
-Args:
-  - tasklist_id (string): Tasklist ID (required)
-  - task_id (string): Task ID (required)
-
-Returns:
-  - Success message
-
-Example:
-  - tasklist_add_task tasklist_id=7XXXXXX task_id=7YYYYYY`,
+Example: tasklist_add_task tasklist_id=7XXXXXX task_id=7YYYYYY`,
       inputSchema: TasklistAddTaskSchema,
       annotations: {
         readOnlyHint: false,
@@ -639,17 +533,9 @@ Example:
     "tasklist_remove_task",
     {
       title: "Remove Task from Tasklist",
-      description: `Remove a task from a tasklist.
+      description: `從任務清單移除任務。
 
-Args:
-  - tasklist_id (string): Tasklist ID (required)
-  - task_id (string): Task ID (required)
-
-Returns:
-  - Success message
-
-Example:
-  - tasklist_remove_task tasklist_id=7XXXXXX task_id=7YYYYYY`,
+Example: tasklist_remove_task tasklist_id=7XXXXXX task_id=7YYYYYY`,
       inputSchema: TasklistRemoveTaskSchema,
       annotations: {
         readOnlyHint: false,
@@ -679,19 +565,9 @@ Example:
     "tasklist_tasks",
     {
       title: "List Tasks in Tasklist",
-      description: `List all tasks in a specific tasklist.
+      description: `列出任務清單中的任務。回傳 id、summary、is_completed。
 
-Args:
-  - tasklist_id (string): Tasklist ID (required)
-  - limit (number): Max results (default: 50)
-  - offset (number): Pagination offset (default: 0)
-  - response_format ('markdown' | 'json'): Output format
-
-Returns:
-  - List of tasks with id, summary, is_completed
-
-Example:
-  - tasklist_tasks tasklist_id=7XXXXXX`,
+Example: tasklist_tasks tasklist_id=7XXXXXX`,
       inputSchema: TasklistTasksSchema,
       annotations: {
         readOnlyHint: true,
@@ -732,22 +608,9 @@ Example:
     "subtask_create",
     {
       title: "Create Subtask",
-      description: `建立子任務。
+      description: `建立子任務。回傳 id、summary、members、時間。
 
-Args:
-  - parent_task_id (string): 父任務 ID（必填）
-  - summary (string): 子任務摘要（必填）
-  - members (string[]): 負責人 ID 清單（open_id 或 user_id）
-  - start_time (string): 開始時間（ISO 8601 格式）
-  - due_time (string): 截止時間（ISO 8601 格式）
-  - response_format ('markdown' | 'json'): 輸出格式
-
-Returns:
-  - 子任務 ID、摘要、負責人、時間
-
-Example:
-  - subtask_create parent_task_id=7XXXXXX summary="完成報告初稿"
-  - subtask_create parent_task_id=7XXXXXX summary="審核文件" members=["ou_xxx"] due_time="2024-12-31T18:00:00+08:00"`,
+Example: subtask_create parent_task_id=7XXXXXX summary="完成報告"`,
       inputSchema: SubtaskCreateSchema,
       annotations: {
         readOnlyHint: false,
@@ -824,19 +687,9 @@ Example:
     "subtask_list",
     {
       title: "List Subtasks",
-      description: `列出父任務的所有子任務。
+      description: `列出父任務的子任務。回傳 id、summary、members、時間、is_completed。
 
-Args:
-  - parent_task_id (string): 父任務 ID（必填）
-  - limit (number): 最大結果數（預設 50）
-  - offset (number): 分頁偏移量（預設 0）
-  - response_format ('markdown' | 'json'): 輸出格式
-
-Returns:
-  - 子任務清單，包含 id、summary、members、start_time、due_time、is_completed
-
-Example:
-  - subtask_list parent_task_id=7XXXXXX`,
+Example: subtask_list parent_task_id=7XXXXXX`,
       inputSchema: SubtaskListSchema,
       annotations: {
         readOnlyHint: true,
@@ -901,24 +754,9 @@ Example:
     "subtask_update",
     {
       title: "Update Subtask",
-      description: `更新子任務。
+      description: `更新子任務。至少需提供一個更新欄位。
 
-Args:
-  - task_id (string): 子任務 ID（必填）
-  - summary (string): 新摘要
-  - members (string[]): 新負責人 ID 清單（open_id 或 user_id）
-  - start_time (string): 新開始時間（ISO 8601 格式）
-  - due_time (string): 新截止時間（ISO 8601 格式）
-
-至少需要提供一個更新欄位。
-
-Returns:
-  - 成功訊息與更新的欄位
-
-Example:
-  - subtask_update task_id=7XXXXXX summary="更新後的標題"
-  - subtask_update task_id=7XXXXXX due_time="2024-12-31T18:00:00+08:00"
-  - subtask_update task_id=7XXXXXX members=["ou_xxx"]`,
+Example: subtask_update task_id=7XXXXXX summary="Updated"`,
       inputSchema: SubtaskUpdateSchema,
       annotations: {
         readOnlyHint: false,
@@ -979,84 +817,4 @@ Example:
     }
   );
 
-  // subtask_complete
-  server.registerTool(
-    "subtask_complete",
-    {
-      title: "Complete Subtask",
-      description: `將子任務標記為已完成。
-
-Args:
-  - task_id (string): 子任務 ID（必填）
-
-Returns:
-  - 成功訊息
-
-Example:
-  - subtask_complete task_id=7XXXXXX`,
-      inputSchema: SubtaskCompleteSchema,
-      annotations: {
-        readOnlyHint: false,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: true,
-      },
-    },
-    async (params) => {
-      try {
-        const { task_id } = params;
-        const completedAt = Math.floor(Date.now() / 1000).toString();
-
-        await larkRequest(`/task/v2/tasks/${task_id}`, {
-          method: "PATCH",
-          body: {
-            task: { completed_at: completedAt },
-            update_fields: ["completed_at"],
-          },
-        });
-
-        return success("子任務已完成", { task_id });
-      } catch (err) {
-        return error("完成子任務失敗", err);
-      }
-    }
-  );
-
-  // subtask_delete
-  server.registerTool(
-    "subtask_delete",
-    {
-      title: "Delete Subtask",
-      description: `刪除子任務。
-
-Args:
-  - task_id (string): 子任務 ID（必填）
-
-Returns:
-  - 成功訊息
-
-Example:
-  - subtask_delete task_id=7XXXXXX`,
-      inputSchema: SubtaskDeleteSchema,
-      annotations: {
-        readOnlyHint: false,
-        destructiveHint: true,
-        idempotentHint: false,
-        openWorldHint: true,
-      },
-    },
-    async (params) => {
-      try {
-        const { task_id } = params;
-
-        await larkRequest(`/task/v2/tasks/${task_id}`, {
-          method: "DELETE",
-        });
-
-        return success("子任務已刪除", { task_id });
-      } catch (err) {
-        return error("刪除子任務失敗", err);
-      }
-    }
-  );
 }

@@ -3,7 +3,7 @@
  */
 
 import { z } from "zod";
-import { PaginationSchema, ResponseFormatSchema } from "./common.js";
+import { ListPaginationSchema, SearchPaginationSchema, ResponseFormatSchema } from "./common.js";
 
 /**
  * Task ID 參數
@@ -53,7 +53,7 @@ export const TodoListSchema = z.object({
     .boolean()
     .default(false)
     .describe("List only completed tasks (default: false)"),
-}).merge(PaginationSchema).merge(ResponseFormatSchema);
+}).merge(ListPaginationSchema).merge(ResponseFormatSchema);
 
 /**
  * 搜尋待辦事項
@@ -67,7 +67,7 @@ export const TodoSearchSchema = z.object({
     .boolean()
     .optional()
     .describe("Search only completed tasks"),
-}).merge(PaginationSchema).merge(ResponseFormatSchema);
+}).merge(SearchPaginationSchema).merge(ResponseFormatSchema);
 
 /**
  * 完成待辦事項
@@ -114,7 +114,7 @@ export const TasklistCreateSchema = z.object({
 /**
  * 列出任務清單
  */
-export const TasklistListSchema = PaginationSchema.merge(ResponseFormatSchema);
+export const TasklistListSchema = ListPaginationSchema.merge(ResponseFormatSchema);
 
 /**
  * 取得任務清單詳情
@@ -151,7 +151,7 @@ export const TasklistRemoveTaskSchema = TasklistIdSchema.merge(TaskIdSchema);
 /**
  * 列出任務清單中的待辦
  */
-export const TasklistTasksSchema = TasklistIdSchema.merge(PaginationSchema).merge(ResponseFormatSchema);
+export const TasklistTasksSchema = TasklistIdSchema.merge(ListPaginationSchema).merge(ResponseFormatSchema);
 
 /**
  * 子任務父任務 ID 參數
@@ -189,7 +189,7 @@ export const SubtaskCreateSchema = SubtaskParentSchema.extend({
 /**
  * 列出子任務
  */
-export const SubtaskListSchema = SubtaskParentSchema.merge(PaginationSchema).merge(ResponseFormatSchema);
+export const SubtaskListSchema = SubtaskParentSchema.merge(ListPaginationSchema).merge(ResponseFormatSchema);
 
 /**
  * 更新子任務
@@ -215,16 +215,6 @@ export const SubtaskUpdateSchema = TaskIdSchema.extend({
     .describe("New due time in ISO 8601 format"),
 });
 
-/**
- * 完成子任務（使用與一般任務相同的 TaskIdSchema）
- */
-export const SubtaskCompleteSchema = TaskIdSchema;
-
-/**
- * 刪除子任務（使用與一般任務相同的 TaskIdSchema）
- */
-export const SubtaskDeleteSchema = TaskIdSchema;
-
 // 型別匯出
 export type TodoCreateInput = z.infer<typeof TodoCreateSchema>;
 export type TodoListInput = z.infer<typeof TodoListSchema>;
@@ -243,5 +233,3 @@ export type TasklistTasksInput = z.infer<typeof TasklistTasksSchema>;
 export type SubtaskCreateInput = z.infer<typeof SubtaskCreateSchema>;
 export type SubtaskListInput = z.infer<typeof SubtaskListSchema>;
 export type SubtaskUpdateInput = z.infer<typeof SubtaskUpdateSchema>;
-export type SubtaskCompleteInput = z.infer<typeof SubtaskCompleteSchema>;
-export type SubtaskDeleteInput = z.infer<typeof SubtaskDeleteSchema>;

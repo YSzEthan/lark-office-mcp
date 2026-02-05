@@ -8,7 +8,6 @@ export const REDIRECT_URI = "http://localhost:3000/callback";
 
 // 回應限制
 export const CHARACTER_LIMIT = 25000;
-export const DEFAULT_PAGE_SIZE = 50;
 export const MAX_PAGE_SIZE = 100;
 
 // 批次處理

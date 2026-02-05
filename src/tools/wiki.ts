@@ -34,17 +34,9 @@ export function registerWikiTools(server: McpServer): void {
     "wiki_read",
     {
       title: "Read Wiki Document",
-      description: `Read Wiki document content and return as Markdown.
+      description: `讀取 Wiki 內容，回傳 Markdown 格式。
 
-Args:
-  - wiki_token (string): Wiki node token (required)
-  - response_format ('markdown' | 'json'): Output format (default: 'markdown')
-
-Returns:
-  - Document content in Markdown format
-
-Example:
-  - wiki_read wiki_token=wikcnXXXXX`,
+Example: wiki_read wiki_token=wikcnXXXXX`,
       inputSchema: WikiReadSchema,
       annotations: {
         readOnlyHint: true,
@@ -72,17 +64,9 @@ Example:
     "wiki_prepend",
     {
       title: "Prepend to Wiki",
-      description: `Insert content at the top of a Wiki document.
+      description: `在 Wiki 頂部插入內容。回傳區塊數量與 URL。
 
-Args:
-  - wiki_token (string): Wiki node token (required)
-  - content (string): Markdown content to insert (required)
-
-Returns:
-  - Success message with block count and Wiki URL
-
-Example:
-  - wiki_prepend wiki_token=wikcnXXXXX content="# New Section\\nContent here"`,
+Example: wiki_prepend wiki_token=wikcnXXXXX content="# Title"`,
       inputSchema: WikiContentSchema,
       annotations: {
         readOnlyHint: false,
@@ -114,17 +98,9 @@ Example:
     "wiki_append",
     {
       title: "Append to Wiki",
-      description: `Append content at the bottom of a Wiki document.
+      description: `在 Wiki 底部追加內容。回傳區塊數量與 URL。
 
-Args:
-  - wiki_token (string): Wiki node token (required)
-  - content (string): Markdown content to append (required)
-
-Returns:
-  - Success message with block count and Wiki URL
-
-Example:
-  - wiki_append wiki_token=wikcnXXXXX content="## Footer\\nAdditional content"`,
+Example: wiki_append wiki_token=wikcnXXXXX content="## Footer"`,
       inputSchema: WikiContentSchema,
       annotations: {
         readOnlyHint: false,
@@ -158,23 +134,9 @@ Example:
     "wiki_update",
     {
       title: "Update Wiki Content",
-      description: `Update Wiki document content. Supports range update or full rewrite.
+      description: `更新 Wiki 內容。支援範圍更新（需 start_index + end_index）或全文重寫。
 
-Args:
-  - wiki_token (string): Wiki node token (required)
-  - content (string): New Markdown content (required)
-  - start_index (number): Start index for range update (optional)
-  - end_index (number): End index for range update (exclusive, optional)
-
-If start_index and end_index are provided, only that range is replaced.
-Otherwise, the entire document is cleared and rewritten.
-
-Returns:
-  - Success message with operation details and Wiki URL
-
-Example:
-  - Full rewrite: wiki_update wiki_token=wikcnXXXXX content="# New Content"
-  - Range update: wiki_update wiki_token=wikcnXXXXX content="Replacement" start_index=2 end_index=5`,
+Example: wiki_update wiki_token=wikcnXXXXX content="# New Content"`,
       inputSchema: WikiUpdateSchema,
       annotations: {
         readOnlyHint: false,
@@ -246,18 +208,9 @@ Example:
     "wiki_insert_blocks",
     {
       title: "Insert Blocks to Wiki",
-      description: `Insert content blocks at a specific position in Wiki document.
+      description: `在 Wiki 指定位置插入內容。回傳位置與 URL。
 
-Args:
-  - wiki_token (string): Wiki node token (required)
-  - content (string): Markdown content to insert (required)
-  - index (number): Insert position (0-based, default: 0)
-
-Returns:
-  - Success message with position and Wiki URL
-
-Example:
-  - wiki_insert_blocks wiki_token=wikcnXXXXX content="New content" index=5`,
+Example: wiki_insert_blocks wiki_token=wikcnXXXXX content="New" index=5`,
       inputSchema: WikiInsertBlocksSchema,
       annotations: {
         readOnlyHint: false,
@@ -289,18 +242,9 @@ Example:
     "wiki_delete_blocks",
     {
       title: "Delete Wiki Blocks",
-      description: `Delete a range of blocks from Wiki document.
+      description: `刪除 Wiki 指定範圍的區塊。回傳刪除數量與 URL。
 
-Args:
-  - wiki_token (string): Wiki node token (required)
-  - start_index (number): Start index (0-based, required)
-  - end_index (number): End index (exclusive, required)
-
-Returns:
-  - Success message with deleted count and Wiki URL
-
-Example:
-  - wiki_delete_blocks wiki_token=wikcnXXXXX start_index=2 end_index=5`,
+Example: wiki_delete_blocks wiki_token=wikcnXXXXX start_index=2 end_index=5`,
       inputSchema: WikiDeleteBlocksSchema,
       annotations: {
         readOnlyHint: false,
@@ -343,20 +287,9 @@ Example:
     "wiki_search",
     {
       title: "Search Wiki",
-      description: `Search for content within a Wiki space.
+      description: `搜尋 Wiki 空間內容。回傳 token、title、type。
 
-Args:
-  - space_id (string): Wiki space ID (required)
-  - query (string): Search keyword (required)
-  - limit (number): Max results (default: 50)
-  - offset (number): Pagination offset (default: 0)
-  - response_format ('markdown' | 'json'): Output format
-
-Returns:
-  - List of matching Wiki nodes with token, title, type
-
-Example:
-  - wiki_search space_id=7XXXXXX query="meeting notes"`,
+Example: wiki_search space_id=7XXXXXX query="meeting"`,
       inputSchema: WikiSearchSchema,
       annotations: {
         readOnlyHint: true,
@@ -400,21 +333,9 @@ Example:
     "wiki_list_nodes",
     {
       title: "List Wiki Nodes",
-      description: `List nodes in a Wiki space.
+      description: `列出 Wiki 空間節點。回傳 token、title、type、has_children。
 
-Args:
-  - space_id (string): Wiki space ID (required)
-  - parent_node_token (string): Parent node token (optional, omit for root)
-  - limit (number): Max results (default: 50)
-  - offset (number): Pagination offset (default: 0)
-  - response_format ('markdown' | 'json'): Output format
-
-Returns:
-  - List of Wiki nodes with token, title, type, has_children
-
-Example:
-  - wiki_list_nodes space_id=7XXXXXX
-  - wiki_list_nodes space_id=7XXXXXX parent_node_token=wikcnXXXXX`,
+Example: wiki_list_nodes space_id=7XXXXXX`,
       inputSchema: WikiListNodesSchema,
       annotations: {
         readOnlyHint: true,
@@ -455,18 +376,9 @@ Example:
     "wiki_spaces",
     {
       title: "List Wiki Spaces",
-      description: `List all Wiki spaces accessible to the user.
+      description: `列出所有 Wiki 空間。回傳 space_id、name、description。
 
-Args:
-  - limit (number): Max results (default: 50)
-  - offset (number): Pagination offset (default: 0)
-  - response_format ('markdown' | 'json'): Output format
-
-Returns:
-  - List of Wiki spaces with space_id, name, description
-
-Example:
-  - wiki_spaces`,
+Example: wiki_spaces`,
       inputSchema: WikiSpacesSchema,
       annotations: {
         readOnlyHint: true,
@@ -507,19 +419,9 @@ Example:
     "lark_search",
     {
       title: "Global Search",
-      description: `Search across all Lark documents, Wiki, and Drive files.
+      description: `全域搜尋 Lark 文件、Wiki、Drive。回傳 token、name、type、url。
 
-Args:
-  - query (string): Search keyword (required)
-  - limit (number): Max results (default: 50)
-  - offset (number): Pagination offset (default: 0)
-  - response_format ('markdown' | 'json'): Output format
-
-Returns:
-  - List of files with token, name, type, url
-
-Example:
-  - lark_search query="quarterly report"`,
+Example: lark_search query="report"`,
       inputSchema: SearchAllSchema,
       annotations: {
         readOnlyHint: true,

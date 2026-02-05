@@ -3,7 +3,7 @@
  */
 
 import { z } from "zod";
-import { PaginationSchema, ResponseFormatSchema } from "./common.js";
+import { ListPaginationSchema, SearchPaginationSchema, ResponseFormatSchema } from "./common.js";
 
 /**
  * Document ID 參數
@@ -110,7 +110,7 @@ export const DocSearchSchema = z.object({
     .string()
     .optional()
     .describe("Limit search to specific folder (optional)"),
-}).merge(PaginationSchema).merge(ResponseFormatSchema);
+}).merge(SearchPaginationSchema).merge(ResponseFormatSchema);
 
 /**
  * 列出雲端硬碟檔案
@@ -120,7 +120,7 @@ export const DriveListSchema = z.object({
     .string()
     .optional()
     .describe("Folder token (optional, omit for root directory)"),
-}).merge(PaginationSchema).merge(ResponseFormatSchema);
+}).merge(ListPaginationSchema).merge(ResponseFormatSchema);
 
 // 型別匯出
 export type DocCreateInput = z.infer<typeof DocCreateSchema>;

@@ -17,20 +17,9 @@ export function registerAuthTools(server: McpServer): void {
     "lark_auth",
     {
       title: "Lark OAuth Authorization",
-      description: `Submit OAuth authorization code to complete Lark login.
+      description: `提交 OAuth 授權碼完成登入。回傳 token 過期時間與 base URL。
 
-After opening the authorization URL (from lark_auth_url), copy the 'code' parameter from the redirect URL and submit it here.
-
-Args:
-  - code (string): Authorization code from OAuth redirect URL
-
-Returns:
-  - Success message with token expiration time
-  - Base URL of your Lark tenant (automatically detected)
-
-Example:
-  - Use when: You have the authorization code from redirect URL
-  - lark_auth code=abc123xyz`,
+Example: lark_auth code=abc123xyz`,
       inputSchema: LarkAuthSchema,
       annotations: {
         readOnlyHint: false,
@@ -60,16 +49,9 @@ Example:
     "lark_auth_url",
     {
       title: "Get Lark Authorization URL",
-      description: `Get the Lark OAuth authorization URL.
+      description: `取得 Lark OAuth 授權連結。回傳授權 URL。
 
-Use this to start the OAuth flow. Open the returned URL in a browser to authorize.
-
-Returns:
-  - Authorization URL to open in browser
-  - Instructions for completing authorization
-
-Example:
-  - Use when: You need to authorize or re-authorize the Lark connection`,
+Example: lark_auth_url`,
       inputSchema: LarkAuthUrlSchema,
       annotations: {
         readOnlyHint: true,

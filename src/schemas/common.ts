@@ -3,26 +3,50 @@
  */
 
 import { z } from "zod";
-import { ResponseFormat, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "../constants.js";
+import { ResponseFormat, MAX_PAGE_SIZE } from "../constants.js";
 
 /**
- * 分頁參數 Schema
+ * List 工具分頁參數 Schema（預設 20）
  */
-export const PaginationSchema = z.object({
+export const ListPaginationSchema = z.object({
   limit: z
     .number()
     .int()
     .min(1)
     .max(MAX_PAGE_SIZE)
-    .default(DEFAULT_PAGE_SIZE)
-    .describe("Maximum results to return (1-100, default: 50)"),
+    .default(20)
+    .describe("Max results (default: 20)"),
   offset: z
     .number()
     .int()
     .min(0)
     .default(0)
-    .describe("Number of results to skip for pagination"),
+    .describe("Pagination offset"),
 });
+
+/**
+ * Search 工具分頁參數 Schema（預設 10）
+ */
+export const SearchPaginationSchema = z.object({
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(MAX_PAGE_SIZE)
+    .default(10)
+    .describe("Max results (default: 10)"),
+  offset: z
+    .number()
+    .int()
+    .min(0)
+    .default(0)
+    .describe("Pagination offset"),
+});
+
+/**
+ * 分頁參數 Schema（舊版相容，預設 20）
+ */
+export const PaginationSchema = ListPaginationSchema;
 
 /**
  * 回應格式參數 Schema
@@ -35,10 +59,18 @@ export const ResponseFormatSchema = z.object({
 });
 
 /**
- * 結合分頁與回應格式
+ * 結合 List 分頁與回應格式
  */
-export const ListOptionsSchema = PaginationSchema.merge(ResponseFormatSchema);
+export const ListOptionsSchema = ListPaginationSchema.merge(ResponseFormatSchema);
 
+/**
+ * 結合 Search 分頁與回應格式
+ */
+export const SearchOptionsSchema = SearchPaginationSchema.merge(ResponseFormatSchema);
+
+export type ListPaginationInput = z.infer<typeof ListPaginationSchema>;
+export type SearchPaginationInput = z.infer<typeof SearchPaginationSchema>;
 export type PaginationInput = z.infer<typeof PaginationSchema>;
 export type ResponseFormatInput = z.infer<typeof ResponseFormatSchema>;
 export type ListOptionsInput = z.infer<typeof ListOptionsSchema>;
+export type SearchOptionsInput = z.infer<typeof SearchOptionsSchema>;

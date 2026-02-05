@@ -3,7 +3,7 @@
  */
 
 import { z } from "zod";
-import { PaginationSchema, ResponseFormatSchema } from "./common.js";
+import { ListPaginationSchema, SearchPaginationSchema, ResponseFormatSchema } from "./common.js";
 
 /**
  * Wiki Token 參數
@@ -88,7 +88,7 @@ export const WikiSearchSchema = z.object({
     .string()
     .min(1)
     .describe("Search keyword"),
-}).merge(PaginationSchema).merge(ResponseFormatSchema);
+}).merge(SearchPaginationSchema).merge(ResponseFormatSchema);
 
 /**
  * Wiki 列出節點
@@ -102,12 +102,12 @@ export const WikiListNodesSchema = z.object({
     .string()
     .optional()
     .describe("Parent node token (optional, omit for root nodes)"),
-}).merge(PaginationSchema).merge(ResponseFormatSchema);
+}).merge(ListPaginationSchema).merge(ResponseFormatSchema);
 
 /**
  * Wiki 空間列表
  */
-export const WikiSpacesSchema = PaginationSchema.merge(ResponseFormatSchema);
+export const WikiSpacesSchema = ListPaginationSchema.merge(ResponseFormatSchema);
 
 /**
  * 全域搜尋
@@ -117,7 +117,7 @@ export const SearchAllSchema = z.object({
     .string()
     .min(1)
     .describe("Search keyword (required)"),
-}).merge(PaginationSchema).merge(ResponseFormatSchema);
+}).merge(SearchPaginationSchema).merge(ResponseFormatSchema);
 
 // 型別匯出
 export type WikiReadInput = z.infer<typeof WikiReadSchema>;

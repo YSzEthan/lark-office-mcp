@@ -33,19 +33,9 @@ export function registerDocTools(server: McpServer): void {
     "doc_create",
     {
       title: "Create Document",
-      description: `Create a new Lark document.
+      description: `建立新文件。回傳 document_id、title、url。
 
-Args:
-  - folder_token (string): Target folder token (required)
-  - title (string): Document title (required)
-  - content (string): Initial content in Markdown format (optional)
-
-Returns:
-  - Document ID, title, and URL
-
-Example:
-  - doc_create folder_token=fldcnXXXXX title="Meeting Notes"
-  - doc_create folder_token=fldcnXXXXX title="Report" content="# Introduction\\nContent here"`,
+Example: doc_create folder_token=fldcnXXXXX title="Meeting Notes"`,
       inputSchema: DocCreateSchema,
       annotations: {
         readOnlyHint: false,
@@ -81,17 +71,9 @@ Example:
     "doc_read",
     {
       title: "Read Document",
-      description: `Read document content and return as Markdown.
+      description: `讀取文件內容，回傳 Markdown 格式。
 
-Args:
-  - document_id (string): Document ID (required)
-  - response_format ('markdown' | 'json'): Output format (default: 'markdown')
-
-Returns:
-  - Document content in Markdown format
-
-Example:
-  - doc_read document_id=doccnXXXXX`,
+Example: doc_read document_id=doccnXXXXX`,
       inputSchema: DocReadSchema,
       annotations: {
         readOnlyHint: true,
@@ -118,23 +100,9 @@ Example:
     "doc_update",
     {
       title: "Update Document",
-      description: `Update document content. Supports range update or full rewrite.
+      description: `更新文件內容。支援範圍更新（需 start_index + end_index）或全文重寫。
 
-Args:
-  - document_id (string): Document ID (required)
-  - content (string): New Markdown content (required)
-  - start_index (number): Start index for range update (optional)
-  - end_index (number): End index for range update (exclusive, optional)
-
-If start_index and end_index are provided, only that range is replaced.
-Otherwise, the entire document is cleared and rewritten.
-
-Returns:
-  - Success message with operation details and document URL
-
-Example:
-  - Full rewrite: doc_update document_id=doccnXXXXX content="# New Content"
-  - Range update: doc_update document_id=doccnXXXXX content="Replacement" start_index=2 end_index=5`,
+Example: doc_update document_id=doccnXXXXX content="# New Content"`,
       inputSchema: DocUpdateSchema,
       annotations: {
         readOnlyHint: false,
@@ -206,16 +174,9 @@ Example:
     "doc_delete",
     {
       title: "Delete Document",
-      description: `Delete a document.
+      description: `刪除文件。
 
-Args:
-  - document_id (string): Document ID (required)
-
-Returns:
-  - Success message
-
-Example:
-  - doc_delete document_id=doccnXXXXX`,
+Example: doc_delete document_id=doccnXXXXX`,
       inputSchema: DocDeleteSchema,
       annotations: {
         readOnlyHint: false,
@@ -245,18 +206,9 @@ Example:
     "doc_insert_blocks",
     {
       title: "Insert Blocks to Document",
-      description: `Insert content blocks at a specific position in document.
+      description: `在文件指定位置插入內容。回傳位置與 URL。
 
-Args:
-  - document_id (string): Document ID (required)
-  - content (string): Markdown content to insert (required)
-  - index (number): Insert position (0-based, default: 0)
-
-Returns:
-  - Success message with position and document URL
-
-Example:
-  - doc_insert_blocks document_id=doccnXXXXX content="New content" index=5`,
+Example: doc_insert_blocks document_id=doccnXXXXX content="New" index=5`,
       inputSchema: DocInsertBlocksSchema,
       annotations: {
         readOnlyHint: false,
@@ -288,18 +240,9 @@ Example:
     "doc_delete_blocks",
     {
       title: "Delete Document Blocks",
-      description: `Delete a range of blocks from document.
+      description: `刪除文件指定範圍的區塊。回傳刪除數量與 URL。
 
-Args:
-  - document_id (string): Document ID (required)
-  - start_index (number): Start index (0-based, required)
-  - end_index (number): End index (exclusive, required)
-
-Returns:
-  - Success message with deleted count and document URL
-
-Example:
-  - doc_delete_blocks document_id=doccnXXXXX start_index=2 end_index=5`,
+Example: doc_delete_blocks document_id=doccnXXXXX start_index=2 end_index=5`,
       inputSchema: DocDeleteBlocksSchema,
       annotations: {
         readOnlyHint: false,
@@ -342,21 +285,9 @@ Example:
     "doc_search",
     {
       title: "Search Documents",
-      description: `Search for documents.
+      description: `搜尋文件。回傳 token、name、type、url。
 
-Args:
-  - query (string): Search keyword (required)
-  - folder_token (string): Limit search to specific folder (optional)
-  - limit (number): Max results (default: 50)
-  - offset (number): Pagination offset (default: 0)
-  - response_format ('markdown' | 'json'): Output format
-
-Returns:
-  - List of documents with token, name, type, url
-
-Example:
-  - doc_search query="meeting notes"
-  - doc_search query="report" folder_token=fldcnXXXXX`,
+Example: doc_search query="meeting notes"`,
       inputSchema: DocSearchSchema,
       annotations: {
         readOnlyHint: true,
@@ -409,20 +340,9 @@ Example:
     "drive_list",
     {
       title: "List Drive Files",
-      description: `List files and folders in Lark Drive.
+      description: `列出雲端硬碟檔案。回傳 token、name、type、parent_token、url。
 
-Args:
-  - folder_token (string): Folder token (optional, omit for root directory)
-  - limit (number): Max results (default: 50)
-  - offset (number): Pagination offset (default: 0)
-  - response_format ('markdown' | 'json'): Output format
-
-Returns:
-  - List of files/folders with token, name, type, parent_token, url
-
-Example:
-  - drive_list
-  - drive_list folder_token=fldcnXXXXX`,
+Example: drive_list folder_token=fldcnXXXXX`,
       inputSchema: DriveListSchema,
       annotations: {
         readOnlyHint: true,

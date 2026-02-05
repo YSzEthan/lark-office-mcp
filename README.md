@@ -7,7 +7,7 @@ Lark (飛書) MCP Server - 讓 Claude 直接操作 Lark 文件、Wiki、待辦�
 | 項目 | 值 |
 |------|-----|
 | 名稱 | lark-mcp-server |
-| 版本 | 3.4.0 |
+| 版本 | 3.5.0 |
 | 執行環境 | Bun |
 | 認證方式 | OAuth 2.0 (User Access Token) |
 | Token 儲存 | `~/.lark-token.json` |
@@ -90,9 +90,9 @@ bun install
 | `todo_list` | 列出待辦事項 |
 | `todo_create` | 建立待辦事項 |
 | `todo_search` | 搜尋待辦事項 |
-| `todo_complete` | 完成待辦事項 |
 | `todo_update` | 更新待辦事項 |
-| `todo_delete` | 刪除待辦事項 |
+| `task_complete` | 完成任務或子任務 |
+| `task_delete` | 刪除任務或子任務 |
 
 ### 任務清單工具
 
@@ -114,8 +114,8 @@ bun install
 | `subtask_create` | 建立子任務（支援負責人、開始/截止時間）|
 | `subtask_list` | 列出父任務的子任務 |
 | `subtask_update` | 更新子任務（摘要、負責人、時間）|
-| `subtask_complete` | 完成子任務 |
-| `subtask_delete` | 刪除子任務 |
+
+> 注意：子任務的完成和刪除請使用 `task_complete` 和 `task_delete`。
 
 ---
 
@@ -125,7 +125,7 @@ bun install
 
 | 參數 | 類型 | 預設值 | 說明 |
 |------|------|--------|------|
-| limit | number | 50 | 最大結果數 (1-100) |
+| limit | number | 20（list）/ 10（search）| 最大結果數 (1-100) |
 | offset | number | 0 | 分頁偏移量 |
 | response_format | string | "markdown" | 輸出格式："markdown" 或 "json" |
 
@@ -284,11 +284,11 @@ bun install
 | query | string | 是 | 搜尋關鍵字 |
 | completed | boolean | 否 | 只搜尋已完成 |
 
-#### `todo_complete` / `todo_delete`
+#### `task_complete` / `task_delete`
 
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
-| task_id | string | 是 | 待辦事項 ID |
+| task_id | string | 是 | 任務或子任務 ID |
 
 #### `todo_update`
 
@@ -354,12 +354,6 @@ bun install
 | members | string[] | 否 | 新負責人 ID 清單 |
 | start_time | string | 否 | 新開始時間（ISO 8601 格式）|
 | due_time | string | 否 | 新截止時間（ISO 8601 格式）|
-
-#### `subtask_complete` / `subtask_delete`
-
-| 參數 | 類型 | 必填 | 說明 |
-|------|------|------|------|
-| task_id | string | 是 | 子任務 ID |
 
 ---
 
