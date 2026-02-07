@@ -10,8 +10,8 @@ import {
   DocDeleteSchema,
   DocInsertBlocksSchema,
   DocDeleteBlocksSchema,
-  DocSearchSchema,
   DriveListSchema,
+  DriveRecentSchema,
 } from "../schemas/index.js";
 import {
   createDocument,
@@ -280,61 +280,6 @@ Example: doc_delete_blocks document_id=doccnXXXXX start_index=2 end_index=5`,
     }
   );
 
-  // doc_search
-  server.registerTool(
-    "doc_search",
-    {
-      title: "Search Documents",
-      description: `搜尋文件。回傳 token、name、type、url。
-
-Example: doc_search query="meeting notes"`,
-      inputSchema: DocSearchSchema,
-      annotations: {
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: true,
-      },
-    },
-    async (params) => {
-      try {
-        const { query, folder_token, limit, response_format } = params;
-
-        const body: Record<string, unknown> = {
-          search_key: query,
-          count: limit,
-        };
-
-        if (folder_token) {
-          body.folder_token = folder_token;
-        }
-
-        const data = await larkRequest<{
-          files?: Array<{
-            token?: string;
-            name?: string;
-            type?: string;
-            url?: string;
-          }>;
-        }>("/drive/v1/files/search", {
-          method: "POST",
-          body,
-        });
-
-        const files = data.files || [];
-
-        if (files.length === 0) {
-          return success(`Search "${query}" returned no results`);
-        }
-
-        const simplified = simplifySearchResults(files);
-        return success(`Search "${query}" found ${simplified.length} results`, simplified, response_format);
-      } catch (err) {
-        return error("Document search failed", err);
-      }
-    }
-  );
-
   // drive_list
   server.registerTool(
     "drive_list",
@@ -388,6 +333,78 @@ Example: drive_list folder_token=fldcnXXXXX`,
         return success(`Found ${simplified.length} files/folders`, simplified, response_format);
       } catch (err) {
         return error("Drive list failed", err);
+      }
+    }
+  );
+
+  // drive_recent - 最近存取的檔案
+  server.registerTool(
+    "drive_recent",
+    {
+      title: "Recent Files",
+      description: `列出最近存取的檔案。回傳 token、name、type、url。
+
+Example: drive_recent`,
+      inputSchema: DriveRecentSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { limit, response_format } = params;
+
+        // 嘗試多個可能的 API 端點
+        const endpoints = [
+          "/drive/v1/files/recent",
+          "/drive/explorer/v2/recent",
+          "/suite/docs-api/recent",
+        ];
+
+        for (const endpoint of endpoints) {
+          try {
+            const data = await larkRequest<{
+              files?: Array<{
+                token?: string;
+                name?: string;
+                type?: string;
+                url?: string;
+              }>;
+              entities?: Array<{
+                token?: string;
+                title?: string;
+                type?: string;
+                url?: string;
+              }>;
+            }>(endpoint, {
+              params: { page_size: limit },
+              skipRetry: true,
+            });
+
+            const files = data.files || data.entities || [];
+
+            if (files.length > 0) {
+              const simplified = files.map((f) => ({
+                token: f.token || "",
+                name: f.name || f.title || "(untitled)",
+                type: f.type || "unknown",
+                url: f.url,
+              }));
+
+              return success(`Found ${simplified.length} recent files`, simplified, response_format);
+            }
+          } catch {
+            // 嘗試下一個端點
+            continue;
+          }
+        }
+
+        return success("No recent files found or API not available");
+      } catch (err) {
+        return error("Drive recent failed", err);
       }
     }
   );

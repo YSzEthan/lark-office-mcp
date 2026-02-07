@@ -99,20 +99,6 @@ export const DocDeleteBlocksSchema = DocumentIdSchema.extend({
 });
 
 /**
- * 搜尋文件
- */
-export const DocSearchSchema = z.object({
-  query: z
-    .string()
-    .min(1)
-    .describe("Search keyword (required)"),
-  folder_token: z
-    .string()
-    .optional()
-    .describe("Limit search to specific folder (optional)"),
-}).merge(SearchPaginationSchema).merge(ResponseFormatSchema);
-
-/**
  * 列出雲端硬碟檔案
  */
 export const DriveListSchema = z.object({
@@ -122,6 +108,11 @@ export const DriveListSchema = z.object({
     .describe("Folder token (optional, omit for root directory)"),
 }).merge(ListPaginationSchema).merge(ResponseFormatSchema);
 
+/**
+ * 最近存取的檔案
+ */
+export const DriveRecentSchema = ListPaginationSchema.merge(ResponseFormatSchema);
+
 // 型別匯出
 export type DocCreateInput = z.infer<typeof DocCreateSchema>;
 export type DocReadInput = z.infer<typeof DocReadSchema>;
@@ -129,5 +120,5 @@ export type DocUpdateInput = z.infer<typeof DocUpdateSchema>;
 export type DocDeleteInput = z.infer<typeof DocDeleteSchema>;
 export type DocInsertBlocksInput = z.infer<typeof DocInsertBlocksSchema>;
 export type DocDeleteBlocksInput = z.infer<typeof DocDeleteBlocksSchema>;
-export type DocSearchInput = z.infer<typeof DocSearchSchema>;
 export type DriveListInput = z.infer<typeof DriveListSchema>;
+export type DriveRecentInput = z.infer<typeof DriveRecentSchema>;

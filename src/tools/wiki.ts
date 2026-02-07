@@ -9,7 +9,6 @@ import {
   WikiUpdateSchema,
   WikiInsertBlocksSchema,
   WikiDeleteBlocksSchema,
-  WikiSearchSchema,
   WikiListNodesSchema,
   WikiSpacesSchema,
   SearchAllSchema,
@@ -282,52 +281,6 @@ Example: wiki_delete_blocks wiki_token=wikcnXXXXX start_index=2 end_index=5`,
     }
   );
 
-  // wiki_search
-  server.registerTool(
-    "wiki_search",
-    {
-      title: "Search Wiki",
-      description: `搜尋 Wiki 空間內容。回傳 token、title、type。
-
-Example: wiki_search space_id=7XXXXXX query="meeting"`,
-      inputSchema: WikiSearchSchema,
-      annotations: {
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: true,
-      },
-    },
-    async (params) => {
-      try {
-        const { space_id, query, limit, response_format } = params;
-
-        const data = await larkRequest<{
-          items?: Array<{
-            node_token?: string;
-            title?: string;
-            obj_type?: string;
-          }>;
-        }>(`/wiki/v2/spaces/${space_id}/nodes`, {
-          params: { page_size: limit },
-        });
-
-        const filtered = (data.items || []).filter((item) =>
-          item.title?.toLowerCase().includes(query.toLowerCase())
-        );
-
-        if (filtered.length === 0) {
-          return success(`Search "${query}" returned no results`);
-        }
-
-        const simplified = simplifyNodeList(filtered);
-        return success(`Search "${query}" found ${simplified.length} results`, simplified, response_format);
-      } catch (err) {
-        return error("Wiki search failed", err);
-      }
-    }
-  );
-
   // wiki_list_nodes
   server.registerTool(
     "wiki_list_nodes",
@@ -414,14 +367,17 @@ Example: wiki_spaces`,
     }
   );
 
-  // search_all
+  // lark_search (整合 doc_search, wiki_search)
   server.registerTool(
     "lark_search",
     {
       title: "Global Search",
       description: `全域搜尋 Lark 文件、Wiki、Drive。回傳 token、name、type、url。
 
-Example: lark_search query="report"`,
+Examples:
+- lark_search query="report"
+- lark_search query="meeting" doc_type="wiki"
+- lark_search query="notes" folder_token="fldcnXXX"`,
       inputSchema: SearchAllSchema,
       annotations: {
         readOnlyHint: true,
@@ -432,25 +388,119 @@ Example: lark_search query="report"`,
     },
     async (params) => {
       try {
-        const { query, limit, response_format } = params;
+        const { query, doc_type, folder_token, wiki_space_id, limit, offset, response_format } = params;
 
-        const data = await larkRequest<{
-          files?: Array<{
-            token?: string;
-            name?: string;
-            type?: string;
-            url?: string;
-          }>;
-          has_more?: boolean;
-        }>("/drive/v1/files/search", {
-          method: "POST",
-          body: {
+        type FileItem = {
+          token?: string;
+          name?: string;
+          type?: string;
+          url?: string;
+          wiki_info?: { space_id?: string };
+        };
+
+        type DocsEntity = {
+          docs_token?: string;
+          title?: string;
+          docs_type?: string;
+          url?: string;
+        };
+
+        // 遞迴搜尋函數（fallback 用）
+        const maxDepth = 3;
+        const maxFiles = 200;
+
+        async function searchFolderRecursive(folderToken?: string, depth = 0): Promise<FileItem[]> {
+          if (depth > maxDepth) return [];
+
+          const results: FileItem[] = [];
+          const reqParams: Record<string, string | number> = { page_size: 50 };
+          if (folderToken) {
+            reqParams.folder_token = folderToken;
+          }
+
+          try {
+            const data = await larkRequest<{ files?: FileItem[] }>("/drive/v1/files", { params: reqParams });
+            const files = data.files || [];
+
+            for (const file of files) {
+              if (results.length >= maxFiles) break;
+
+              if (file.type === "folder") {
+                const subFiles = await searchFolderRecursive(file.token, depth + 1);
+                results.push(...subFiles);
+              } else {
+                results.push(file);
+              }
+            }
+          } catch {
+            // 忽略無權限的資料夾
+          }
+
+          return results;
+        }
+
+        // 方案 A：使用 /suite/docs-api/search/object（支援所有可存取文件）
+        try {
+          const body: Record<string, unknown> = {
             search_key: query,
-            count: limit,
-          },
-        });
+            count: Math.min(limit * 2, 50), // 多取一些以應對過濾
+            offset: offset,
+          };
 
-        const files = data.files || [];
+          if (doc_type && doc_type !== "all") {
+            body.docs_types = [doc_type];
+          }
+
+          if (wiki_space_id) {
+            body.wiki_space_ids = [wiki_space_id];
+          }
+
+          const data = await larkRequest<{ docs_entities?: DocsEntity[] }>("/suite/docs-api/search/object", {
+            method: "POST",
+            body,
+            skipRetry: true,
+          });
+
+          const entities = data.docs_entities || [];
+
+          if (entities.length > 0) {
+            // 轉換為統一格式
+            const files: FileItem[] = entities.map((e) => ({
+              token: e.docs_token,
+              name: e.title,
+              type: e.docs_type,
+              url: e.url,
+            }));
+
+            const limited = files.slice(0, limit);
+            const simplified = simplifySearchResults(limited);
+            return success(`Search "${query}" found ${simplified.length} results`, simplified, response_format);
+          }
+        } catch {
+          // 搜尋 API 失敗，fallback 到方案 B
+        }
+
+        // 方案 B：遞迴搜尋 Drive 資料夾
+        const allFiles = await searchFolderRecursive(folder_token);
+
+        // 本地過濾
+        const queryLower = query.toLowerCase();
+        let files = allFiles.filter((f) =>
+          f.name?.toLowerCase().includes(queryLower)
+        );
+
+        // 類型過濾
+        if (doc_type && doc_type !== "all") {
+          files = files.filter((f) => f.type === doc_type);
+        }
+
+        // Wiki space 過濾
+        if (wiki_space_id) {
+          files = files.filter((f) => f.wiki_info?.space_id === wiki_space_id);
+        }
+
+        // 分頁
+        files = files.slice(offset, offset + limit);
 
         if (files.length === 0) {
           return success(`Search "${query}" returned no results`);

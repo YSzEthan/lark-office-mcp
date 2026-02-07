@@ -7,7 +7,7 @@ Lark (飛書) MCP Server - 讓 Claude 直接操作 Lark 文件、Wiki、待辦�
 | 項目 | 值 |
 |------|-----|
 | 名稱 | lark-mcp-server |
-| 版本 | 3.5.0 |
+| 版本 | 3.6.0 |
 | 執行環境 | Bun |
 | 認證方式 | OAuth 2.0 (User Access Token) |
 | Token 儲存 | `~/.lark-token.json` |
@@ -67,7 +67,6 @@ bun install
 | `wiki_append` | 在 Wiki 底部追加內容 |
 | `wiki_insert_blocks` | 在指定位置插入內容 |
 | `wiki_delete_blocks` | 刪除指定範圍的區塊 |
-| `wiki_search` | 搜尋 Wiki 空間 |
 
 ### 文件工具
 
@@ -79,9 +78,9 @@ bun install
 | `doc_delete` | 刪除文件 |
 | `doc_insert_blocks` | 在指定位置插入內容 |
 | `doc_delete_blocks` | 刪除指定範圍的區塊 |
-| `doc_search` | 搜尋文件 |
 | `drive_list` | 列出雲端硬碟檔案 |
-| `lark_search` | 全域搜尋 |
+| `drive_recent` | 列出最近存取的檔案 |
+| `lark_search` | 全域搜尋（支援我的文件資料庫、共享空間）|
 
 ### 待辦事項工具
 
@@ -188,13 +187,6 @@ bun install
 | start_index | number | 是 | 起始位置（從 0 開始）|
 | end_index | number | 是 | 結束位置（不包含）|
 
-#### `wiki_search`
-
-| 參數 | 類型 | 必填 | 說明 |
-|------|------|------|------|
-| space_id | string | 是 | Wiki 空間 ID |
-| query | string | 是 | 搜尋關鍵字 |
-
 ### 文件工具
 
 #### `doc_create`
@@ -242,24 +234,26 @@ bun install
 | start_index | number | 是 | 起始位置（從 0 開始）|
 | end_index | number | 是 | 結束位置（不包含）|
 
-#### `doc_search`
-
-| 參數 | 類型 | 必填 | 說明 |
-|------|------|------|------|
-| query | string | 是 | 搜尋關鍵字 |
-| folder_token | string | 否 | 限定搜尋的資料夾 |
-
 #### `drive_list`
 
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
 | folder_token | string | 否 | 資料夾 Token（不填列出根目錄）|
 
+#### `drive_recent`
+
+無必填參數。
+
 #### `lark_search`
 
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
 | query | string | 是 | 搜尋關鍵字 |
+| doc_type | string | 否 | 文件類型（doc/docx/sheet/bitable/wiki/file）|
+| folder_token | string | 否 | 限定搜尋的資料夾 |
+| wiki_space_id | string | 否 | 限定搜尋的 Wiki 空間 |
+
+> 使用 `/suite/docs-api/search/object` API，支援搜尋所有可存取文件（包括我的文件資料庫、共享空間）。
 
 ### 待辦事項工具
 

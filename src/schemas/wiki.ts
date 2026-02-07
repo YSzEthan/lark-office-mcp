@@ -77,20 +77,6 @@ export const WikiDeleteBlocksSchema = WikiTokenSchema.extend({
 });
 
 /**
- * Wiki 搜尋
- */
-export const WikiSearchSchema = z.object({
-  space_id: z
-    .string()
-    .min(1)
-    .describe("Wiki space ID (required)"),
-  query: z
-    .string()
-    .min(1)
-    .describe("Search keyword"),
-}).merge(SearchPaginationSchema).merge(ResponseFormatSchema);
-
-/**
  * Wiki 列出節點
  */
 export const WikiListNodesSchema = z.object({
@@ -110,13 +96,25 @@ export const WikiListNodesSchema = z.object({
 export const WikiSpacesSchema = ListPaginationSchema.merge(ResponseFormatSchema);
 
 /**
- * 全域搜尋
+ * 全域搜尋（整合 doc_search, wiki_search）
  */
 export const SearchAllSchema = z.object({
   query: z
     .string()
     .min(1)
     .describe("Search keyword (required)"),
+  doc_type: z
+    .enum(["all", "doc", "docx", "sheet", "bitable", "wiki", "file"])
+    .optional()
+    .describe("Filter by document type (optional)"),
+  folder_token: z
+    .string()
+    .optional()
+    .describe("Limit to specific folder (optional)"),
+  wiki_space_id: z
+    .string()
+    .optional()
+    .describe("Limit to specific wiki space (optional)"),
 }).merge(SearchPaginationSchema).merge(ResponseFormatSchema);
 
 // 型別匯出
@@ -125,7 +123,6 @@ export type WikiContentInput = z.infer<typeof WikiContentSchema>;
 export type WikiUpdateInput = z.infer<typeof WikiUpdateSchema>;
 export type WikiInsertBlocksInput = z.infer<typeof WikiInsertBlocksSchema>;
 export type WikiDeleteBlocksInput = z.infer<typeof WikiDeleteBlocksSchema>;
-export type WikiSearchInput = z.infer<typeof WikiSearchSchema>;
 export type WikiListNodesInput = z.infer<typeof WikiListNodesSchema>;
 export type WikiSpacesInput = z.infer<typeof WikiSpacesSchema>;
 export type SearchAllInput = z.infer<typeof SearchAllSchema>;
