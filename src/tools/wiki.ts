@@ -49,8 +49,13 @@ Example: wiki_read wiki_token=wikcnXXXXX`,
         const { wiki_token, response_format } = params;
         const node = await getWikiNode(wiki_token);
         const blocks = await getDocumentBlocks(node.objToken);
-        const markdown = blocksToMarkdown(blocks);
 
+        // json 格式回傳原始 blocks，markdown 格式才轉換
+        if (response_format === "json") {
+          return success("Wiki read successful", blocks, response_format);
+        }
+
+        const markdown = blocksToMarkdown(blocks);
         return success("Wiki read successful", truncate(markdown), response_format);
       } catch (err) {
         return error("Wiki read failed", err);

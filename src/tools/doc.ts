@@ -86,8 +86,13 @@ Example: doc_read document_id=doccnXXXXX`,
       try {
         const { document_id, response_format } = params;
         const blocks = await getDocumentBlocks(document_id);
-        const markdown = blocksToMarkdown(blocks);
 
+        // json 格式回傳原始 blocks，markdown 格式才轉換
+        if (response_format === "json") {
+          return success("Document read successful", blocks, response_format);
+        }
+
+        const markdown = blocksToMarkdown(blocks);
         return success("Document read successful", truncate(markdown), response_format);
       } catch (err) {
         return error("Document read failed", err);
