@@ -89,10 +89,34 @@ export const TodoUpdateSchema = TaskIdSchema.extend({
     .max(2000)
     .optional()
     .describe("New description"),
+  start_time: z
+    .string()
+    .optional()
+    .describe("Start time in ISO 8601 format"),
   due_time: z
     .string()
     .optional()
     .describe("New due time (ISO 8601 format)"),
+});
+
+/**
+ * 新增任務負責人
+ */
+export const TodoAddMembersSchema = TaskIdSchema.extend({
+  members: z
+    .array(z.string())
+    .min(1)
+    .describe("User IDs to add (open_id or user_id)"),
+});
+
+/**
+ * 移除任務負責人
+ */
+export const TodoRemoveMembersSchema = TaskIdSchema.extend({
+  members: z
+    .array(z.string())
+    .min(1)
+    .describe("User IDs to remove (open_id or user_id)"),
 });
 
 /**

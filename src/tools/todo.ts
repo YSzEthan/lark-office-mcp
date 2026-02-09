@@ -10,6 +10,8 @@ import {
   TodoCompleteSchema,
   TodoUpdateSchema,
   TodoDeleteSchema,
+  TodoAddMembersSchema,
+  TodoRemoveMembersSchema,
   TasklistCreateSchema,
   TasklistListSchema,
   TasklistGetSchema,
@@ -241,10 +243,10 @@ Example: todo_update task_id=7XXXXXX summary="Updated"`,
     },
     async (params) => {
       try {
-        const { task_id, summary, description, due_time } = params;
+        const { task_id, summary, description, start_time, due_time } = params;
 
-        if (!summary && !description && !due_time) {
-          return error("At least one field (summary, description, or due_time) must be provided");
+        if (!summary && !description && !start_time && !due_time) {
+          return error("At least one field (summary, description, start_time, or due_time) must be provided");
         }
 
         const body: Record<string, unknown> = {};
@@ -258,9 +260,16 @@ Example: todo_update task_id=7XXXXXX summary="Updated"`,
           body.description = description;
           updateFields.push("description");
         }
+        if (start_time) {
+          body.start = {
+            timestamp: Math.floor(new Date(start_time).getTime() / 1000).toString(),
+            is_all_day: false,
+          };
+          updateFields.push("start");
+        }
         if (due_time) {
           body.due = {
-            timestamp: new Date(due_time).getTime().toString(),
+            timestamp: Math.floor(new Date(due_time).getTime() / 1000).toString(),
             is_all_day: false,
           };
           updateFields.push("due");
@@ -308,6 +317,76 @@ Example: task_delete task_id=7XXXXXX`,
         return success("Task deleted", { task_id });
       } catch (err) {
         return error("Task deletion failed", err);
+      }
+    }
+  );
+
+  // todo_add_members
+  server.registerTool(
+    "todo_add_members",
+    {
+      title: "Add Task Members",
+      description: `新增任務負責人。
+
+Example: todo_add_members task_id=7XXXXXX members=["ou_xxxxx"]`,
+      inputSchema: TodoAddMembersSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { task_id, members } = params;
+
+        await larkRequest(`/task/v2/tasks/${task_id}/add_members`, {
+          method: "POST",
+          body: {
+            members: members.map((id) => ({ id, role: "assignee" })),
+          },
+          params: { user_id_type: "open_id" },
+        });
+
+        return success("Members added", { task_id, added: members });
+      } catch (err) {
+        return error("Add members failed", err);
+      }
+    }
+  );
+
+  // todo_remove_members
+  server.registerTool(
+    "todo_remove_members",
+    {
+      title: "Remove Task Members",
+      description: `移除任務負責人。
+
+Example: todo_remove_members task_id=7XXXXXX members=["ou_xxxxx"]`,
+      inputSchema: TodoRemoveMembersSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { task_id, members } = params;
+
+        await larkRequest(`/task/v2/tasks/${task_id}/remove_members`, {
+          method: "POST",
+          body: {
+            members: members.map((id) => ({ id, role: "assignee" })),
+          },
+          params: { user_id_type: "open_id" },
+        });
+
+        return success("Members removed", { task_id, removed: members });
+      } catch (err) {
+        return error("Remove members failed", err);
       }
     }
   );

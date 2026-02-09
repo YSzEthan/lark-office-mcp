@@ -7,7 +7,7 @@ Lark (飛書) MCP Server - 讓 Claude 直接操作 Lark 文件、Wiki、待辦�
 | 項目 | 值 |
 |------|-----|
 | 名稱 | lark-mcp-server |
-| 版本 | 3.9.3 |
+| 版本 | 3.11.0 |
 | 執行環境 | Bun |
 | 認證方式 | OAuth 2.0 (User Access Token) |
 | Token 儲存 | `~/.lark-token.json` |
@@ -54,6 +54,9 @@ bun install
 |------|------|
 | `lark_auth_url` | 取得 Lark 授權連結 |
 | `lark_auth` | 提交授權碼完成 OAuth 登入 |
+| `user_me` | 取得當前用戶資訊（open_id、name、email）|
+| `user_get` | 查詢指定用戶資訊 |
+| `user_list` | 列出部門成員 |
 
 ### Wiki 工具
 
@@ -91,6 +94,8 @@ bun install
 | `todo_create` | 建立待辦事項 |
 | `todo_search` | 搜尋待辦事項 |
 | `todo_update` | 更新待辦事項 |
+| `todo_add_members` | 新增任務負責人 |
+| `todo_remove_members` | 移除任務負責人 |
 | `task_complete` | 完成任務或子任務 |
 | `task_delete` | 刪除任務或子任務 |
 
@@ -151,6 +156,22 @@ bun install
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
 | code | string | 是 | 從授權頁面取得的授權碼 |
+
+#### `user_me`
+
+無參數。回傳當前用戶的 open_id、user_id、name、email、mobile。
+
+#### `user_get`
+
+| 參數 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| user_id | string | 是 | 用戶 ID（open_id 或 user_id）|
+
+#### `user_list`
+
+| 參數 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| department_id | string | 否 | 部門 ID（不填列出根部門 "0"）|
 
 ### Wiki 工具
 
@@ -309,7 +330,15 @@ bun install
 | task_id | string | 是 | 待辦事項 ID |
 | summary | string | 否 | 新摘要 |
 | description | string | 否 | 新描述 |
-| due_time | string | 否 | 新截止時間 |
+| start_time | string | 否 | 開始時間（ISO 8601 格式）|
+| due_time | string | 否 | 新截止時間（ISO 8601 格式）|
+
+#### `todo_add_members` / `todo_remove_members`
+
+| 參數 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| task_id | string | 是 | 任務 ID |
+| members | string[] | 是 | 用戶 ID 清單（open_id 或 user_id）|
 
 ### 任務清單工具
 
@@ -434,6 +463,9 @@ bun install
 - `task:tasklist:read` - 讀取任務清單
 - `task:tasklist:write` - 寫入任務清單
 - `task:section:write` - 任務分組（取得「我負責的」任務）
+- `contact:contact.base:readonly` - 列出部門成員
+- `contact:user.base:readonly` - 讀取用戶基本資訊
+- `contact:user.email:readonly` - 讀取用戶 email
 - `offline_access` - 離線存取（Refresh Token）
 
 ---
