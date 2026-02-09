@@ -141,19 +141,16 @@ function parseMarkdownTable(tableLines: string[]): Record<string, unknown> | nul
   const columnSize = Math.max(...rows.map((r) => r.length));
   const rowSize = rows.length;
 
-  // 建立單元格 blocks
-  const cellBlocks: Array<Record<string, unknown>> = [];
+  // 建立單元格內容（metadata，由 insertBlocks 處理）
+  const cellContents: Array<Record<string, unknown>> = [];
   for (const row of rows) {
     for (let col = 0; col < columnSize; col++) {
       const cellContent = row[col] || "";
-      cellBlocks.push({
-        block_type: 32,
-        table_cell: parseInlineStyles(cellContent),
-      });
+      cellContents.push(parseInlineStyles(cellContent));
     }
   }
 
-  // 建立表格 block
+  // 建立表格 block（_cellContents 為 metadata，不直接傳給 API）
   return {
     block_type: 31,
     table: {
@@ -164,7 +161,7 @@ function parseMarkdownTable(tableLines: string[]): Record<string, unknown> | nul
         header_column: false,
       },
     },
-    children: cellBlocks,
+    _cellContents: cellContents,
   };
 }
 
