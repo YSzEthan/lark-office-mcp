@@ -18,7 +18,7 @@ export const WikiTokenSchema = z.object({
 /**
  * Wiki 讀取
  */
-export const WikiReadSchema = WikiTokenSchema.merge(ResponseFormatSchema);
+export const WikiReadSchema = WikiTokenSchema;
 
 /**
  * Wiki 內容操作 (prepend, append, update)

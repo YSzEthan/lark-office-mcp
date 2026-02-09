@@ -33,7 +33,7 @@ export function registerWikiTools(server: McpServer): void {
     "wiki_read",
     {
       title: "Read Wiki Document",
-      description: `讀取 Wiki 內容，回傳 Markdown 格式。
+      description: `讀取 Wiki 內容，回傳原始 blocks。需要顯示給用戶時使用 blocks_to_markdown 轉換。
 
 Example: wiki_read wiki_token=wikcnXXXXX`,
       inputSchema: WikiReadSchema,
@@ -46,17 +46,11 @@ Example: wiki_read wiki_token=wikcnXXXXX`,
     },
     async (params) => {
       try {
-        const { wiki_token, response_format } = params;
+        const { wiki_token } = params;
         const node = await getWikiNode(wiki_token);
         const blocks = await getDocumentBlocks(node.objToken);
 
-        // json 格式回傳原始 blocks，markdown 格式才轉換
-        if (response_format === "json") {
-          return success("Wiki read successful", blocks, response_format);
-        }
-
-        const markdown = await blocksToMarkdown(blocks);
-        return success("Wiki read successful", truncate(markdown), response_format);
+        return success("Wiki read successful", blocks);
       } catch (err) {
         return error("Wiki read failed", err);
       }

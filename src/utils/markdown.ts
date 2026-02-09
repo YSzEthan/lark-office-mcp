@@ -93,6 +93,82 @@ const MARKDOWN_PATTERNS: Array<{
 ];
 
 /**
+ * 解析 Markdown 表格行，提取單元格內容
+ */
+function parseTableRow(line: string): string[] | null {
+  // 表格行必須以 | 開頭和結尾
+  const trimmed = line.trim();
+  if (!trimmed.startsWith("|") || !trimmed.endsWith("|")) {
+    return null;
+  }
+
+  // 移除首尾的 |，然後按 | 分割
+  const inner = trimmed.slice(1, -1);
+  return inner.split("|").map((cell) => cell.trim());
+}
+
+/**
+ * 檢查是否為表格分隔行（如 |---|---|）
+ */
+function isTableSeparator(line: string): boolean {
+  const cells = parseTableRow(line);
+  if (!cells) return false;
+  return cells.every((cell) => /^:?-+:?$/.test(cell));
+}
+
+/**
+ * 將 Markdown 表格轉換為 Lark Table Block
+ */
+function parseMarkdownTable(tableLines: string[]): Record<string, unknown> | null {
+  if (tableLines.length < 2) return null;
+
+  // 過濾掉分隔行
+  const dataLines = tableLines.filter((line) => !isTableSeparator(line));
+  if (dataLines.length === 0) return null;
+
+  // 解析每一行
+  const rows: string[][] = [];
+  for (const line of dataLines) {
+    const cells = parseTableRow(line);
+    if (cells) {
+      rows.push(cells);
+    }
+  }
+
+  if (rows.length === 0) return null;
+
+  // 確定列數（取最大值）
+  const columnSize = Math.max(...rows.map((r) => r.length));
+  const rowSize = rows.length;
+
+  // 建立單元格 blocks
+  const cellBlocks: Array<Record<string, unknown>> = [];
+  for (const row of rows) {
+    for (let col = 0; col < columnSize; col++) {
+      const cellContent = row[col] || "";
+      cellBlocks.push({
+        block_type: 32,
+        table_cell: parseInlineStyles(cellContent),
+      });
+    }
+  }
+
+  // 建立表格 block
+  return {
+    block_type: 31,
+    table: {
+      property: {
+        row_size: rowSize,
+        column_size: columnSize,
+        header_row: true,
+        header_column: false,
+      },
+    },
+    children: cellBlocks,
+  };
+}
+
+/**
  * 將 Markdown 轉換為 Lark Blocks
  */
 export function markdownToBlocks(markdown: string): Array<Record<string, unknown>> {
@@ -101,10 +177,22 @@ export function markdownToBlocks(markdown: string): Array<Record<string, unknown
   let inCodeBlock = false;
   let codeContent: string[] = [];
   let codeLanguage = "";
+  let tableLines: string[] = [];
 
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
     // 處理程式碼區塊
     if (line.startsWith("```")) {
+      // 如果有未處理的表格，先處理
+      if (tableLines.length > 0) {
+        const tableBlock = parseMarkdownTable(tableLines);
+        if (tableBlock) {
+          blocks.push(tableBlock);
+        }
+        tableLines = [];
+      }
+
       if (!inCodeBlock) {
         inCodeBlock = true;
         codeLanguage = line.slice(3).trim();
@@ -130,8 +218,24 @@ export function markdownToBlocks(markdown: string): Array<Record<string, unknown
       continue;
     }
 
+    // 檢查是否為表格行
+    const trimmed = line.trim();
+    if (trimmed.startsWith("|") && trimmed.endsWith("|")) {
+      tableLines.push(line);
+      continue;
+    }
+
+    // 如果之前有表格行，但這行不是表格，則處理表格
+    if (tableLines.length > 0) {
+      const tableBlock = parseMarkdownTable(tableLines);
+      if (tableBlock) {
+        blocks.push(tableBlock);
+      }
+      tableLines = [];
+    }
+
     // 跳過空行
-    if (!line.trim()) continue;
+    if (!trimmed) continue;
 
     // 檢查 Markdown 語法
     let matched = false;
@@ -147,6 +251,14 @@ export function markdownToBlocks(markdown: string): Array<Record<string, unknown
     // 預設為普通文字
     if (!matched) {
       blocks.push({ block_type: 2, text: parseInlineStyles(line) });
+    }
+  }
+
+  // 處理結尾的表格
+  if (tableLines.length > 0) {
+    const tableBlock = parseMarkdownTable(tableLines);
+    if (tableBlock) {
+      blocks.push(tableBlock);
     }
   }
 

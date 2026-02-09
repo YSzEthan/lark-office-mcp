@@ -37,7 +37,16 @@ export const DocCreateSchema = z.object({
 /**
  * 讀取文件
  */
-export const DocReadSchema = DocumentIdSchema.merge(ResponseFormatSchema);
+export const DocReadSchema = DocumentIdSchema;
+
+/**
+ * Blocks 轉 Markdown
+ */
+export const BlocksToMarkdownSchema = z.object({
+  blocks: z
+    .array(z.record(z.unknown()))
+    .describe("Lark blocks array from wiki_read or doc_read"),
+});
 
 /**
  * 更新文件 (支援範圍更新)

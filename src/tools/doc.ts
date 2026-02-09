@@ -12,6 +12,7 @@ import {
   DocDeleteBlocksSchema,
   DriveListSchema,
   DriveRecentSchema,
+  BlocksToMarkdownSchema,
 } from "../schemas/index.js";
 import {
   createDocument,
@@ -22,6 +23,7 @@ import {
 } from "../services/lark-client.js";
 import { markdownToBlocks, blocksToMarkdown } from "../utils/markdown.js";
 import { success, error, simplifySearchResults, truncate } from "../utils/response.js";
+import type { LarkBlock } from "../types.js";
 import { DOC_URL } from "../constants.js";
 
 /**
@@ -71,7 +73,7 @@ Example: doc_create folder_token=fldcnXXXXX title="Meeting Notes"`,
     "doc_read",
     {
       title: "Read Document",
-      description: `讀取文件內容，回傳 Markdown 格式。
+      description: `讀取文件內容，回傳原始 blocks。需要顯示給用戶時使用 blocks_to_markdown 轉換。
 
 Example: doc_read document_id=doccnXXXXX`,
       inputSchema: DocReadSchema,
@@ -84,16 +86,10 @@ Example: doc_read document_id=doccnXXXXX`,
     },
     async (params) => {
       try {
-        const { document_id, response_format } = params;
+        const { document_id } = params;
         const blocks = await getDocumentBlocks(document_id);
 
-        // json 格式回傳原始 blocks，markdown 格式才轉換
-        if (response_format === "json") {
-          return success("Document read successful", blocks, response_format);
-        }
-
-        const markdown = await blocksToMarkdown(blocks);
-        return success("Document read successful", truncate(markdown), response_format);
+        return success("Document read successful", blocks);
       } catch (err) {
         return error("Document read failed", err);
       }
@@ -410,6 +406,33 @@ Example: drive_recent`,
         return success("No recent files found or API not available");
       } catch (err) {
         return error("Drive recent failed", err);
+      }
+    }
+  );
+
+  // blocks_to_markdown
+  server.registerTool(
+    "blocks_to_markdown",
+    {
+      title: "Convert Blocks to Markdown",
+      description: `將 Lark blocks 轉換為 Markdown。用於顯示 wiki_read/doc_read 的內容給用戶。
+
+Example: blocks_to_markdown blocks=[...]`,
+      inputSchema: BlocksToMarkdownSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (params) => {
+      try {
+        const { blocks } = params;
+        const markdown = await blocksToMarkdown(blocks as LarkBlock[]);
+        return success("Conversion successful", truncate(markdown));
+      } catch (err) {
+        return error("Conversion failed", err);
       }
     }
   );
