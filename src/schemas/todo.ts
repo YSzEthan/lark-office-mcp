@@ -165,7 +165,12 @@ export const TasklistDeleteSchema = TasklistIdSchema;
 /**
  * 將待辦加入任務清單
  */
-export const TasklistAddTaskSchema = TasklistIdSchema.merge(TaskIdSchema);
+export const TasklistAddTaskSchema = TasklistIdSchema.merge(TaskIdSchema).extend({
+  section_guid: z
+    .string()
+    .optional()
+    .describe("Section GUID to add task to (optional)"),
+});
 
 /**
  * 從任務清單移除待辦
@@ -287,7 +292,32 @@ export const SectionTasksSchema = SectionGuidSchema.extend({
     .describe("Max results (default: 50)"),
 }).merge(ResponseFormatSchema);
 
+/**
+ * 建立 Section
+ */
+export const SectionCreateSchema = z.object({
+  name: z
+    .string()
+    .min(1)
+    .max(100)
+    .describe("Section name (required)"),
+  resource_type: z
+    .enum(["my_tasks", "tasklist"])
+    .describe("Resource type: 'my_tasks' or 'tasklist' (required)"),
+  resource_id: z
+    .string()
+    .optional()
+    .describe("Tasklist GUID (required when resource_type is 'tasklist')"),
+}).merge(ResponseFormatSchema);
+
+/**
+ * 刪除 Section
+ */
+export const SectionDeleteSchema = SectionGuidSchema;
+
 // 型別匯出
+export type SectionCreateInput = z.infer<typeof SectionCreateSchema>;
+export type SectionDeleteInput = z.infer<typeof SectionDeleteSchema>;
 export type SectionListInput = z.infer<typeof SectionListSchema>;
 export type SectionTasksInput = z.infer<typeof SectionTasksSchema>;
 export type TodoCreateInput = z.infer<typeof TodoCreateSchema>;
@@ -307,3 +337,5 @@ export type TasklistTasksInput = z.infer<typeof TasklistTasksSchema>;
 export type SubtaskCreateInput = z.infer<typeof SubtaskCreateSchema>;
 export type SubtaskListInput = z.infer<typeof SubtaskListSchema>;
 export type SubtaskUpdateInput = z.infer<typeof SubtaskUpdateSchema>;
+export type TodoAddMembersInput = z.infer<typeof TodoAddMembersSchema>;
+export type TodoRemoveMembersInput = z.infer<typeof TodoRemoveMembersSchema>;

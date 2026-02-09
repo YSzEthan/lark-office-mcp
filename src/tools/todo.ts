@@ -25,6 +25,8 @@ import {
   SubtaskUpdateSchema,
   SectionListSchema,
   SectionTasksSchema,
+  SectionCreateSchema,
+  SectionDeleteSchema,
 } from "../schemas/index.js";
 import { larkRequest } from "../services/lark-client.js";
 import { success, error, simplifyTodo, simplifyTodoList } from "../utils/response.js";
@@ -589,7 +591,7 @@ Example: tasklist_delete tasklist_id=7XXXXXX`,
       title: "Add Task to Tasklist",
       description: `將任務加入任務清單。
 
-Example: tasklist_add_task tasklist_id=7XXXXXX task_id=7YYYYYY`,
+Example: tasklist_add_task tasklist_id=7XXXXXX task_id=7YYYYYY section_guid=zzz`,
       inputSchema: TasklistAddTaskSchema,
       annotations: {
         readOnlyHint: false,
@@ -600,14 +602,19 @@ Example: tasklist_add_task tasklist_id=7XXXXXX task_id=7YYYYYY`,
     },
     async (params) => {
       try {
-        const { tasklist_id, task_id } = params;
+        const { tasklist_id, task_id, section_guid } = params;
+
+        const body: Record<string, unknown> = { tasklist_guid: tasklist_id };
+        if (section_guid) {
+          body.section_guid = section_guid;
+        }
 
         await larkRequest(`/task/v2/tasks/${task_id}/add_tasklist`, {
           method: "POST",
-          body: { tasklist_guid: tasklist_id },
+          body,
         });
 
-        return success("Task added to tasklist", { tasklist_id, task_id });
+        return success("Task added to tasklist", { tasklist_id, task_id, section_guid });
       } catch (err) {
         return error("Add task to tasklist failed", err);
       }
@@ -1020,6 +1027,83 @@ Example: section_tasks section_guid=xxx completed=false`,
         return success(message, tasks, response_format);
       } catch (err) {
         return error("Section tasks failed", err);
+      }
+    }
+  );
+
+  // section_create
+  server.registerTool(
+    "section_create",
+    {
+      title: "Create Section",
+      description: `在 Tasklist 或「我負責的」中建立分組。回傳 guid、name。
+
+Example: section_create name="Bug" resource_type="tasklist" resource_id=xxx`,
+      inputSchema: SectionCreateSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { name, resource_type, resource_id, response_format } = params;
+
+        const body: Record<string, unknown> = {
+          name,
+          resource_type,
+        };
+
+        if (resource_type === "tasklist" && resource_id) {
+          body.resource_id = resource_id;
+        }
+
+        const data = await larkRequest<{
+          section: { guid: string; name: string };
+        }>("/task/v2/sections", {
+          method: "POST",
+          body,
+        });
+
+        return success("Section created", {
+          guid: data.section.guid,
+          name: data.section.name,
+        }, response_format);
+      } catch (err) {
+        return error("Section creation failed", err);
+      }
+    }
+  );
+
+  // section_delete
+  server.registerTool(
+    "section_delete",
+    {
+      title: "Delete Section",
+      description: `刪除分組。
+
+Example: section_delete section_guid=xxx`,
+      inputSchema: SectionDeleteSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { section_guid } = params;
+
+        await larkRequest(`/task/v2/sections/${section_guid}`, {
+          method: "DELETE",
+        });
+
+        return success("Section deleted", { section_guid });
+      } catch (err) {
+        return error("Section deletion failed", err);
       }
     }
   );
