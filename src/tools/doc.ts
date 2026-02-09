@@ -92,7 +92,7 @@ Example: doc_read document_id=doccnXXXXX`,
           return success("Document read successful", blocks, response_format);
         }
 
-        const markdown = blocksToMarkdown(blocks);
+        const markdown = await blocksToMarkdown(blocks);
         return success("Document read successful", truncate(markdown), response_format);
       } catch (err) {
         return error("Document read failed", err);

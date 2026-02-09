@@ -54,7 +54,7 @@ export const PaginationSchema = ListPaginationSchema;
 export const ResponseFormatSchema = z.object({
   response_format: z
     .nativeEnum(ResponseFormat)
-    .default(ResponseFormat.MARKDOWN)
+    .default(ResponseFormat.JSON)
     .describe("Output format: 'markdown' for human-readable or 'json' for structured data"),
 });
 

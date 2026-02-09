@@ -55,7 +55,7 @@ Example: wiki_read wiki_token=wikcnXXXXX`,
           return success("Wiki read successful", blocks, response_format);
         }
 
-        const markdown = blocksToMarkdown(blocks);
+        const markdown = await blocksToMarkdown(blocks);
         return success("Wiki read successful", truncate(markdown), response_format);
       } catch (err) {
         return error("Wiki read failed", err);

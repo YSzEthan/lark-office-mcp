@@ -70,7 +70,26 @@ export interface LarkBlock {
   callout?: LarkTextContent & { background_color?: number; emoji_id?: string };
   // 結構類型
   divider?: Record<string, never>;
-  table?: { rows?: number; columns?: number };
+  // Table (block_type 31) - 原生表格
+  table?: {
+    cells?: string[]; // 單元格 block IDs
+    property?: {
+      row_size?: number;
+      column_size?: number;
+      column_width?: number[];
+      header_row?: boolean;
+      header_column?: boolean;
+      merge_info?: Array<{ row_span?: number; col_span?: number }>;
+    };
+  };
+  // TableCell (block_type 32) - 表格單元格
+  table_cell?: LarkTextContent;
+  // Sheet (block_type 30) - 嵌入多維表格
+  sheet?: {
+    token?: string;
+    row_size?: number;
+    column_size?: number;
+  };
   // 媒體類型
   file?: { token?: string; name?: string };
   image?: { token?: string; width?: number; height?: number };

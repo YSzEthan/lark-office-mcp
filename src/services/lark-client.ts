@@ -29,6 +29,7 @@ export function getAuthorizationUrl(): string {
   const scopes = [
     "wiki:wiki",
     "drive:drive",
+    "bitable:app",
     "offline_access",
     "task:task:read",
     "task:task:write",
@@ -545,4 +546,149 @@ export async function createDocument(
     documentId: data.document.document_id,
     revisionId: data.document.revision_id,
   };
+}
+
+/**
+ * 解析 Sheet token (格式: app_token_table_id)
+ */
+export function parseSheetToken(sheetToken: string): { appToken: string; tableId: string } | null {
+  // Sheet token 格式: {app_token}_{table_id}
+  // app_token 通常是固定長度，table_id 在最後一個 _ 之後
+  const lastUnderscoreIndex = sheetToken.lastIndexOf("_");
+  if (lastUnderscoreIndex === -1) {
+    return null;
+  }
+
+  return {
+    appToken: sheetToken.substring(0, lastUnderscoreIndex),
+    tableId: sheetToken.substring(lastUnderscoreIndex + 1),
+  };
+}
+
+/**
+ * 獲取 Bitable 欄位定義
+ */
+export async function getBitableFields(
+  appToken: string,
+  tableId: string
+): Promise<Array<{ field_id: string; field_name: string; type: number }>> {
+  const data = await larkRequest<{
+    items?: Array<{
+      field_id?: string;
+      field_name?: string;
+      type?: number;
+    }>;
+  }>(`/bitable/v1/apps/${appToken}/tables/${tableId}/fields`, {
+    params: { page_size: 100 },
+  });
+
+  return (data.items || []).map((field) => ({
+    field_id: field.field_id || "",
+    field_name: field.field_name || "",
+    type: field.type || 0,
+  }));
+}
+
+/**
+ * 獲取 Bitable 記錄
+ */
+export async function getBitableRecords(
+  appToken: string,
+  tableId: string,
+  pageSize = 100
+): Promise<Array<{ record_id: string; fields: Record<string, unknown> }>> {
+  const data = await larkRequest<{
+    items?: Array<{
+      record_id?: string;
+      fields?: Record<string, unknown>;
+    }>;
+  }>(`/bitable/v1/apps/${appToken}/tables/${tableId}/records`, {
+    params: { page_size: pageSize },
+  });
+
+  return (data.items || []).map((record) => ({
+    record_id: record.record_id || "",
+    fields: record.fields || {},
+  }));
+}
+
+/**
+ * 獲取 Sheet 內容並轉換為 Markdown 表格
+ */
+export async function getSheetAsMarkdown(sheetToken: string): Promise<string | null> {
+  const parsed = parseSheetToken(sheetToken);
+  if (!parsed) {
+    return null;
+  }
+
+  try {
+    const [fields, records] = await Promise.all([
+      getBitableFields(parsed.appToken, parsed.tableId),
+      getBitableRecords(parsed.appToken, parsed.tableId),
+    ]);
+
+    if (fields.length === 0) {
+      return "[Empty table]";
+    }
+
+    // 建立表頭
+    const headers = fields.map((f) => f.field_name);
+    const lines: string[] = [];
+
+    // 表頭行
+    lines.push(`| ${headers.join(" | ")} |`);
+    // 分隔行
+    lines.push(`| ${headers.map(() => "---").join(" | ")} |`);
+
+    // 資料行
+    for (const record of records) {
+      const cells = fields.map((field) => {
+        const value = record.fields[field.field_name];
+        return formatBitableValue(value);
+      });
+      lines.push(`| ${cells.join(" | ")} |`);
+    }
+
+    return lines.join("\n");
+  } catch (err) {
+    // 如果無法讀取，返回連結
+    return `📊 [sheet](lark://sheet/${sheetToken})`;
+  }
+}
+
+/**
+ * 格式化 Bitable 欄位值
+ */
+function formatBitableValue(value: unknown): string {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  // 處理陣列（多選、人員等）
+  if (Array.isArray(value)) {
+    return value.map((v) => {
+      if (typeof v === "object" && v !== null) {
+        // 人員欄位
+        if ("name" in v) return (v as { name: string }).name;
+        // 連結欄位
+        if ("text" in v) return (v as { text: string }).text;
+        // 其他物件
+        return JSON.stringify(v);
+      }
+      return String(v);
+    }).join(", ");
+  }
+
+  // 處理物件
+  if (typeof value === "object") {
+    // 人員欄位（單選）
+    if ("name" in value) return (value as { name: string }).name;
+    // 連結欄位
+    if ("text" in value) return (value as { text: string }).text;
+    // 其他物件
+    return JSON.stringify(value);
+  }
+
+  // 清理字串（移除換行和管道符）
+  return String(value).replace(/[\n\r|]/g, " ").trim();
 }
