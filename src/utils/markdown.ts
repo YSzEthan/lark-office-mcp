@@ -151,14 +151,13 @@ function parseMarkdownTable(tableLines: string[]): Record<string, unknown> | nul
   }
 
   // 建立表格 block（_cellContents 為 metadata，不直接傳給 API）
+  // 注意：只傳 row_size 和 column_size，避免 1770001 invalid param
   return {
     block_type: 31,
     table: {
       property: {
         row_size: rowSize,
         column_size: columnSize,
-        header_row: true,
-        header_column: false,
       },
     },
     _cellContents: cellContents,

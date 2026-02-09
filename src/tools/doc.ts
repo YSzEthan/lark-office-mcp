@@ -118,6 +118,9 @@ Example: doc_update document_id=doccnXXXXX content="# New Content"`,
         const rootBlockId = await getDocumentRootBlockId(document_id);
         const isRangeUpdate = start_index !== undefined && end_index !== undefined;
 
+        const blocks = markdownToBlocks(content);
+        const hasTable = blocks.some((b) => b._cellContents);
+
         if (isRangeUpdate) {
           if (start_index < 0 || end_index <= start_index) {
             return error("Invalid range (end_index must be greater than start_index)");
@@ -132,7 +135,11 @@ Example: doc_update document_id=doccnXXXXX content="# New Content"`,
             },
           });
 
-          const blocks = markdownToBlocks(content);
+          // 表格需要等待文件狀態同步
+          if (hasTable) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+
           await insertBlocks(document_id, rootBlockId, blocks, start_index);
 
           return success(
@@ -154,9 +161,13 @@ Example: doc_update document_id=doccnXXXXX content="# New Content"`,
                 end_index: childBlockIds.length,
               },
             });
+
+            // 表格需要等待文件狀態同步
+            if (hasTable) {
+              await new Promise((resolve) => setTimeout(resolve, 100));
+            }
           }
 
-          const blocks = markdownToBlocks(content);
           await insertBlocks(document_id, rootBlockId, blocks, 0);
 
           return success(`Document update: inserted ${blocks.length} blocks`, {

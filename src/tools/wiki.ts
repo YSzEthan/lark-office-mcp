@@ -150,6 +150,9 @@ Example: wiki_update wiki_token=wikcnXXXXX content="# New Content"`,
         const rootBlockId = await getDocumentRootBlockId(node.objToken);
         const isRangeUpdate = start_index !== undefined && end_index !== undefined;
 
+        const blocks = markdownToBlocks(content);
+        const hasTable = blocks.some((b) => b._cellContents);
+
         if (isRangeUpdate) {
           if (start_index < 0 || end_index <= start_index) {
             return error("Invalid range (end_index must be greater than start_index)");
@@ -164,7 +167,11 @@ Example: wiki_update wiki_token=wikcnXXXXX content="# New Content"`,
             },
           });
 
-          const blocks = markdownToBlocks(content);
+          // 表格需要等待文件狀態同步
+          if (hasTable) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+
           await insertBlocks(node.objToken, rootBlockId, blocks, start_index);
 
           return success(
@@ -186,9 +193,13 @@ Example: wiki_update wiki_token=wikcnXXXXX content="# New Content"`,
                 end_index: childBlockIds.length,
               },
             });
+
+            // 表格需要等待文件狀態同步
+            if (hasTable) {
+              await new Promise((resolve) => setTimeout(resolve, 100));
+            }
           }
 
-          const blocks = markdownToBlocks(content);
           await insertBlocks(node.objToken, rootBlockId, blocks, 0);
 
           return success(`Wiki update: inserted ${blocks.length} blocks`, {
