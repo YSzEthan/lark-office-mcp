@@ -21,6 +21,8 @@ import {
   SubtaskCreateSchema,
   SubtaskListSchema,
   SubtaskUpdateSchema,
+  SectionListSchema,
+  SectionTasksSchema,
 } from "../schemas/index.js";
 import { larkRequest } from "../services/lark-client.js";
 import { success, error, simplifyTodo, simplifyTodoList } from "../utils/response.js";
@@ -95,9 +97,12 @@ Example: todo_list completed=true`,
       try {
         const { completed, limit, response_format } = params;
 
-        const endpoint = completed
-          ? "/task/v2/tasks?completed_type=completed"
-          : "/task/v2/tasks";
+        // 根據官方文件：completed 為 boolean，true=已完成，false=未完成
+        // 不傳遞 completed 參數則不過濾
+        const reqParams: Record<string, unknown> = { page_size: limit };
+        if (completed !== undefined) {
+          reqParams.completed = completed;
+        }
 
         const data = await larkRequest<{
           items?: Array<{
@@ -110,7 +115,7 @@ Example: todo_list completed=true`,
           }>;
           page_token?: string;
           has_more?: boolean;
-        }>(endpoint, { params: { page_size: limit } });
+        }>("/task/v2/tasks", { params: reqParams });
 
         const todos = data.items || [];
         const simplified = simplifyTodoList(todos);
@@ -147,9 +152,11 @@ Example: todo_search query="meeting"`,
       try {
         const { query, completed, limit, response_format } = params;
 
-        const endpoint = completed
-          ? "/task/v2/tasks?completed_type=completed"
-          : "/task/v2/tasks";
+        // 根據官方文件：completed 為 boolean，true=已完成，false=未完成
+        const searchParams: Record<string, unknown> = { page_size: limit };
+        if (completed !== undefined) {
+          searchParams.completed = completed;
+        }
 
         const data = await larkRequest<{
           items?: Array<{
@@ -160,7 +167,7 @@ Example: todo_search query="meeting"`,
             completed_at?: string;
             creator?: { id?: string; name?: string };
           }>;
-        }>(endpoint, { params: { page_size: limit } });
+        }>("/task/v2/tasks", { params: searchParams });
 
         const todos = data.items || [];
         const filtered = todos.filter((todo) =>
@@ -593,7 +600,7 @@ Example: tasklist_tasks tasklist_id=7XXXXXX`,
         const tasks = (data.items || []).map((task) => ({
           id: task.guid,
           summary: task.summary,
-          is_completed: !!task.completed_at,
+          is_completed: !!task.completed_at && task.completed_at !== "0",
         }));
 
         return success(`Found ${tasks.length} tasks in tasklist`, tasks, response_format);
@@ -721,7 +728,7 @@ Example: subtask_list parent_task_id=7XXXXXX`,
           const item: Record<string, unknown> = {
             id: subtask.guid,
             summary: subtask.summary,
-            is_completed: !!subtask.completed_at,
+            is_completed: !!subtask.completed_at && subtask.completed_at !== "0",
           };
 
           if (subtask.members?.length) {
@@ -813,6 +820,127 @@ Example: subtask_update task_id=7XXXXXX summary="Updated"`,
         return success("子任務已更新", { task_id, updated_fields: updateFields });
       } catch (err) {
         return error("更新子任務失敗", err);
+      }
+    }
+  );
+
+  // section_list
+  server.registerTool(
+    "section_list",
+    {
+      title: "List Sections",
+      description: `列出所有任務分組（Section）。回傳 guid、name。
+
+Example: section_list`,
+      inputSchema: SectionListSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { resource_type, resource_id, limit, response_format } = params;
+
+        const reqParams: Record<string, unknown> = {
+          page_size: limit,
+          resource_type: resource_type || "my_tasks",
+        };
+
+        // tasklist 類型需要提供 resource_id
+        if (resource_type === "tasklist" && resource_id) {
+          reqParams.resource_id = resource_id;
+        }
+
+        const data = await larkRequest<{
+          items?: Array<{ guid?: string; name?: string }>;
+          page_token?: string;
+          has_more?: boolean;
+        }>("/task/v2/sections", {
+          params: reqParams,
+        });
+
+        const sections = (data.items || []).map((section) => ({
+          guid: section.guid,
+          name: section.name,
+        }));
+
+        let message = `Found ${sections.length} sections`;
+        if (data.has_more) {
+          message += " (more available)";
+        }
+
+        return success(message, sections, response_format);
+      } catch (err) {
+        return error("Section list failed", err);
+      }
+    }
+  );
+
+  // section_tasks
+  server.registerTool(
+    "section_tasks",
+    {
+      title: "List Section Tasks",
+      description: `列出分組中的任務。支援過濾未完成任務。
+
+Example: section_tasks section_guid=xxx completed=false`,
+      inputSchema: SectionTasksSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { section_guid, completed, limit, response_format } = params;
+
+        const reqParams: Record<string, unknown> = { page_size: limit };
+        if (completed !== undefined) {
+          reqParams.completed = completed;
+        }
+
+        const data = await larkRequest<{
+          items?: Array<{
+            guid?: string;
+            summary?: string;
+            completed_at?: string;
+            due?: { timestamp?: string };
+          }>;
+          page_token?: string;
+          has_more?: boolean;
+        }>(`/task/v2/sections/${section_guid}/tasks`, {
+          params: reqParams,
+        });
+
+        const tasks = (data.items || []).map((task) => {
+          // completed_at === "0" 代表未完成，有實際時間戳才是已完成
+          const isCompleted = !!task.completed_at && task.completed_at !== "0";
+          const item: Record<string, unknown> = {
+            id: task.guid,
+            summary: task.summary,
+            is_completed: isCompleted,
+          };
+
+          if (task.due?.timestamp) {
+            item.due_time = new Date(parseInt(task.due.timestamp) * 1000).toISOString();
+          }
+
+          return item;
+        });
+
+        let message = `Found ${tasks.length} tasks in section`;
+        if (data.has_more) {
+          message += " (more available)";
+        }
+
+        return success(message, tasks, response_format);
+      } catch (err) {
+        return error("Section tasks failed", err);
       }
     }
   );

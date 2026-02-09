@@ -234,7 +234,7 @@ export function simplifyTodo(todo: {
     summary: todo.summary || "",
     ...(todo.description && { description: todo.description }),
     ...(todo.due?.timestamp && { due_time: todo.due.timestamp }),
-    is_completed: !!todo.completed_at,
+    is_completed: !!todo.completed_at && todo.completed_at !== "0",
     ...(todo.creator?.name && { creator: todo.creator.name }),
   };
 }

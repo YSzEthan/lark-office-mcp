@@ -215,7 +215,57 @@ export const SubtaskUpdateSchema = TaskIdSchema.extend({
     .describe("New due time in ISO 8601 format"),
 });
 
+/**
+ * Section GUID 參數
+ */
+export const SectionGuidSchema = z.object({
+  section_guid: z
+    .string()
+    .min(1)
+    .describe("Section GUID (required)"),
+});
+
+/**
+ * 列出 Section
+ */
+export const SectionListSchema = z.object({
+  resource_type: z
+    .enum(["my_tasks", "tasklist"])
+    .default("my_tasks")
+    .describe("Resource type: 'my_tasks' (我負責的) or 'tasklist' (清單)"),
+  resource_id: z
+    .string()
+    .optional()
+    .describe("Tasklist GUID (required when resource_type is 'tasklist')"),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .default(50)
+    .describe("Max results (default: 50)"),
+}).merge(ResponseFormatSchema);
+
+/**
+ * 列出 Section 中的任務
+ */
+export const SectionTasksSchema = SectionGuidSchema.extend({
+  completed: z
+    .boolean()
+    .optional()
+    .describe("Filter by completion status"),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .default(50)
+    .describe("Max results (default: 50)"),
+}).merge(ResponseFormatSchema);
+
 // 型別匯出
+export type SectionListInput = z.infer<typeof SectionListSchema>;
+export type SectionTasksInput = z.infer<typeof SectionTasksSchema>;
 export type TodoCreateInput = z.infer<typeof TodoCreateSchema>;
 export type TodoListInput = z.infer<typeof TodoListSchema>;
 export type TodoSearchInput = z.infer<typeof TodoSearchSchema>;

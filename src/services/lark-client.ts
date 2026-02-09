@@ -34,6 +34,7 @@ export function getAuthorizationUrl(): string {
     "task:task:write",
     "task:tasklist:read",
     "task:tasklist:write",
+    "task:section:write",
   ];
 
   const scopeStr = scopes.join(" ");
