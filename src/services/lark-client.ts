@@ -494,8 +494,66 @@ export async function getDocumentRootBlockId(documentId: string): Promise<string
 }
 
 /**
+ * 插入表格 block（三步驟流程）
+ * 1. 建立空表格 → 取得 cell IDs
+ * 2. 逐一填入每個 cell 的內容
+ */
+async function insertTableBlock(
+  documentId: string,
+  parentBlockId: string,
+  block: Record<string, unknown>,
+  index: number
+): Promise<void> {
+  // 提取 cell 內容並移除 metadata
+  const cellContents = block._cellContents as Array<Record<string, unknown>> | undefined;
+  const tableBlock = { ...block };
+  delete tableBlock._cellContents;
+
+  // Step 1: 建立空表格
+  const response = await documentRateLimiter.throttle(documentId, () =>
+    larkRequest<{
+      children?: Array<{
+        block_id?: string;
+        table?: { cells?: string[] };
+      }>;
+    }>(`/docx/v1/documents/${documentId}/blocks/${parentBlockId}/children`, {
+      method: "POST",
+      body: {
+        children: [tableBlock],
+        index,
+        document_revision_id: -1,
+      },
+      skipRateLimit: true,
+    })
+  );
+
+  // Step 2: 取得 cell IDs
+  const cellIds = response?.children?.[0]?.table?.cells || [];
+
+  if (!cellContents || cellIds.length === 0) {
+    return; // 沒有內容或建立失敗
+  }
+
+  // Step 3: 填入每個 cell 的內容
+  for (let i = 0; i < cellContents.length && i < cellIds.length; i++) {
+    await documentRateLimiter.throttle(documentId, () =>
+      larkRequest(`/docx/v1/documents/${documentId}/blocks/${cellIds[i]}/children`, {
+        method: "POST",
+        body: {
+          children: [{ block_type: 2, text: cellContents[i] }],
+          index: 0,
+          document_revision_id: -1,
+        },
+        skipRateLimit: true,
+      })
+    );
+  }
+}
+
+/**
  * 批量插入 blocks (帶自動分批)
  * 使用文件級 Rate Limiter 避免同一文件的並發編輯衝突
+ * 支援表格 block 的三步驟插入流程
  */
 export async function insertBlocks(
   documentId: string,
@@ -504,22 +562,46 @@ export async function insertBlocks(
   index = 0,
   batchSize = BATCH_SIZE
 ): Promise<void> {
-  for (let i = 0; i < blocks.length; i += batchSize) {
-    const batch = blocks.slice(i, i + batchSize);
+  let currentIndex = index;
+  let normalBatch: Array<Record<string, unknown>> = [];
 
-    // 使用文件級 Rate Limiter 控制同一文件的編輯頻率
-    await documentRateLimiter.throttle(documentId, async () => {
-      await larkRequest(`/docx/v1/documents/${documentId}/blocks/${parentBlockId}/children`, {
-        method: "POST",
-        body: {
-          children: batch,
-          index: index + i,
-          document_revision_id: -1,
-        },
-        skipRateLimit: true, // 已由 documentRateLimiter 處理
+  // 輔助函數：flush 一般 blocks 批次
+  const flushNormalBatch = async () => {
+    if (normalBatch.length === 0) return;
+
+    for (let i = 0; i < normalBatch.length; i += batchSize) {
+      const batch = normalBatch.slice(i, i + batchSize);
+      await documentRateLimiter.throttle(documentId, async () => {
+        await larkRequest(`/docx/v1/documents/${documentId}/blocks/${parentBlockId}/children`, {
+          method: "POST",
+          body: {
+            children: batch,
+            index: currentIndex,
+            document_revision_id: -1,
+          },
+          skipRateLimit: true,
+        });
       });
-    });
+      currentIndex += batch.length;
+    }
+    normalBatch = [];
+  };
+
+  // 遍歷所有 blocks
+  for (const block of blocks) {
+    if (block._cellContents) {
+      // 表格 block：先 flush 一般批次，再處理表格
+      await flushNormalBatch();
+      await insertTableBlock(documentId, parentBlockId, block, currentIndex);
+      currentIndex += 1;
+    } else {
+      // 一般 block：累積到批次
+      normalBatch.push(block);
+    }
   }
+
+  // 處理剩餘的一般 blocks
+  await flushNormalBatch();
 }
 
 /**

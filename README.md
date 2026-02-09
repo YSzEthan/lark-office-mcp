@@ -7,7 +7,7 @@ Lark (飛書) MCP Server - 讓 Claude 直接操作 Lark 文件、Wiki、待辦�
 | 項目 | 值 |
 |------|-----|
 | 名稱 | lark-mcp-server |
-| 版本 | 3.9.0 |
+| 版本 | 3.9.1 |
 | 執行環境 | Bun |
 | 認證方式 | OAuth 2.0 (User Access Token) |
 | Token 儲存 | `~/.lark-token.json` |
@@ -405,6 +405,13 @@ bun install
 ### 表格支援
 
 **寫入**：Markdown 表格語法會自動轉換為 Lark 原生表格 (Block Type 31)。
+
+> **注意**：Lark API 限制，表格寫入使用三步驟流程：
+> 1. 建立空表格結構
+> 2. API 回傳 cell IDs
+> 3. 逐一填入儲存格內容
+>
+> 較大的表格寫入會較慢。
 
 **讀取**：支援兩種表格類型：
 
