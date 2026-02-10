@@ -3,10 +3,20 @@
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { exec } from "child_process";
 import { LarkAuthSchema, LarkAuthUrlSchema, UserMeSchema, UserGetSchema, UserListSchema } from "../schemas/index.js";
 import { exchangeCodeForToken, getAuthorizationUrl, larkRequest } from "../services/lark-client.js";
 import { success, error } from "../utils/response.js";
 import { getLarkBaseUrl } from "../constants.js";
+
+/**
+ * 開啟瀏覽器（跨平台）
+ */
+function openBrowser(url: string): void {
+  const platform = process.platform;
+  const cmd = platform === "darwin" ? "open" : platform === "win32" ? "start" : "xdg-open";
+  exec(`${cmd} "${url}"`);
+}
 
 /**
  * 註冊認證工具
@@ -59,16 +69,16 @@ Examples:
     "lark_auth_url",
     {
       title: "Get Lark Authorization URL",
-      description: `取得 Lark OAuth 授權連結。
+      description: `取得 Lark OAuth 授權連結並自動開啟瀏覽器。
 
 Args:
   無參數
 
 Returns:
-  授權 URL 字串，用戶需在瀏覽器開啟並完成授權
+  授權 URL 字串，瀏覽器會自動開啟
 
 Examples:
-  - 取得授權連結: lark_auth_url`,
+  - 開啟授權頁面: lark_auth_url`,
       inputSchema: LarkAuthUrlSchema,
       annotations: {
         readOnlyHint: true,
@@ -80,9 +90,10 @@ Examples:
     async () => {
       try {
         const url = getAuthorizationUrl();
+        openBrowser(url);
         return success(
-          "Open the following URL to authorize:",
-          `${url}\n\nAfter authorization, copy the 'code' parameter from the redirect URL and use lark_auth to submit it.`
+          "已開啟瀏覽器，請完成授權",
+          `授權完成後，複製網址中的 code 參數，使用 lark_auth 提交`
         );
       } catch (err) {
         return error("Failed to generate authorization URL", err);
