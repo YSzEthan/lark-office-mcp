@@ -12,6 +12,7 @@ import {
   DocMoveSchema,
   DocInsertBlocksSchema,
   DocDeleteBlocksSchema,
+  DocMoveBlocksSchema,
   DriveListSchema,
   DriveRecentSchema,
   BlocksToMarkdownSchema,
@@ -527,6 +528,102 @@ Permissions:
         });
       } catch (err) {
         return error("Document delete blocks failed", err);
+      }
+    }
+  );
+
+  // doc_move_blocks
+  server.registerTool(
+    "doc_move_blocks",
+    {
+      title: "Move Document Blocks",
+      description: `移動文件內的區塊到指定位置。
+
+Args:
+  - document_id (string): 文件 ID（必填）
+  - start_index (number): 要移動的起始位置，從 0 開始（必填）
+  - end_index (number): 要移動的結束位置，不包含（必填）
+  - target_index (number): 目標位置，從 0 開始（必填）
+
+Returns:
+  {
+    "document_id": string,  // 文件 ID
+    "url": string           // 文件 URL
+  }
+
+Examples:
+  - 將第 0-2 個區塊移到位置 5: doc_move_blocks document_id=doccnXXXXX start_index=0 end_index=2 target_index=5
+  - 將第 5-7 個區塊移到開頭: doc_move_blocks document_id=doccnXXXXX start_index=5 end_index=7 target_index=0
+
+Permissions:
+  - drive:drive`,
+      inputSchema: DocMoveBlocksSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { document_id, start_index, end_index, target_index } = params;
+
+        if (start_index < 0 || end_index <= start_index) {
+          return error("Invalid range (end_index must be greater than start_index)");
+        }
+
+        if (target_index >= start_index && target_index < end_index) {
+          return error("Target index cannot be within the source range");
+        }
+
+        const rootBlockId = await getDocumentRootBlockId(document_id);
+        const allBlocks = await getDocumentBlocks(document_id);
+
+        // 取得要移動的 blocks（過濾掉 root block，只取直接子節點）
+        const childBlocks = allBlocks.filter(
+          (b) => b.parent_id === rootBlockId && b.block_id !== rootBlockId
+        );
+
+        if (end_index > childBlocks.length) {
+          return error(`Invalid range: document has ${childBlocks.length} blocks, but end_index is ${end_index}`);
+        }
+
+        // 提取要移動的 blocks 內容
+        const blocksToMove = childBlocks.slice(start_index, end_index);
+        const blockCount = blocksToMove.length;
+
+        // 將 blocks 轉換為可插入的格式
+        const blocksData = blocksToMove.map((b) => {
+          const { block_id, parent_id, children, ...rest } = b;
+          return rest;
+        });
+
+        // 1. 刪除原位置的 blocks
+        await larkRequest(`/docx/v1/documents/${document_id}/blocks/${rootBlockId}/children/batch_delete`, {
+          method: "DELETE",
+          body: {
+            document_revision_id: -1,
+            start_index,
+            end_index,
+          },
+        });
+
+        // 2. 計算新的目標位置（因為刪除後索引會變化）
+        let adjustedTargetIndex = target_index;
+        if (target_index > start_index) {
+          adjustedTargetIndex = target_index - blockCount;
+        }
+
+        // 3. 在目標位置插入 blocks
+        await insertBlocks(document_id, rootBlockId, blocksData, adjustedTargetIndex);
+
+        return success(`Moved ${blockCount} blocks from index ${start_index}-${end_index} to index ${target_index}`, {
+          document_id,
+          url: DOC_URL(document_id),
+        });
+      } catch (err) {
+        return error("Document move blocks failed", err);
       }
     }
   );

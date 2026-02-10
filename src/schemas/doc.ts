@@ -136,6 +136,27 @@ export const DocDeleteBlocksSchema = DocumentIdSchema.extend({
 });
 
 /**
+ * 移動區塊
+ */
+export const DocMoveBlocksSchema = DocumentIdSchema.extend({
+  start_index: z
+    .number()
+    .int()
+    .min(0)
+    .describe("Start index of blocks to move (0-based, required)"),
+  end_index: z
+    .number()
+    .int()
+    .min(1)
+    .describe("End index of blocks to move (exclusive, required)"),
+  target_index: z
+    .number()
+    .int()
+    .min(0)
+    .describe("Target position to move blocks to (0-based, required)"),
+});
+
+/**
  * 列出雲端硬碟檔案
  */
 export const DriveListSchema = z.object({
@@ -159,5 +180,6 @@ export type DocContentInput = z.infer<typeof DocContentSchema>;
 export type DocMoveInput = z.infer<typeof DocMoveSchema>;
 export type DocInsertBlocksInput = z.infer<typeof DocInsertBlocksSchema>;
 export type DocDeleteBlocksInput = z.infer<typeof DocDeleteBlocksSchema>;
+export type DocMoveBlocksInput = z.infer<typeof DocMoveBlocksSchema>;
 export type DriveListInput = z.infer<typeof DriveListSchema>;
 export type DriveRecentInput = z.infer<typeof DriveRecentSchema>;
