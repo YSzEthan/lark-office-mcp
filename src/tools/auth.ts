@@ -17,9 +17,19 @@ export function registerAuthTools(server: McpServer): void {
     "lark_auth",
     {
       title: "Lark OAuth Authorization",
-      description: `提交 OAuth 授權碼完成登入。回傳 token 過期時間與 base URL。
+      description: `提交 OAuth 授權碼完成登入。
 
-Example: lark_auth code=abc123xyz`,
+Args:
+  - code (string): 從授權頁面取得的授權碼（必填）
+
+Returns:
+  {
+    "expires_at": string,  // Token 過期時間（ISO 8601）
+    "base_url": string     // Lark API base URL
+  }
+
+Examples:
+  - 提交授權碼: lark_auth code=abc123xyz`,
       inputSchema: LarkAuthSchema,
       annotations: {
         readOnlyHint: false,
@@ -49,9 +59,16 @@ Example: lark_auth code=abc123xyz`,
     "lark_auth_url",
     {
       title: "Get Lark Authorization URL",
-      description: `取得 Lark OAuth 授權連結。回傳授權 URL。
+      description: `取得 Lark OAuth 授權連結。
 
-Example: lark_auth_url`,
+Args:
+  無參數
+
+Returns:
+  授權 URL 字串，用戶需在瀏覽器開啟並完成授權
+
+Examples:
+  - 取得授權連結: lark_auth_url`,
       inputSchema: LarkAuthUrlSchema,
       annotations: {
         readOnlyHint: true,
@@ -78,9 +95,23 @@ Example: lark_auth_url`,
     "user_me",
     {
       title: "Get Current User",
-      description: `取得當前用戶資訊。回傳 open_id、name、email。
+      description: `取得當前登入用戶的資訊。
 
-Example: user_me`,
+Args:
+  無參數
+
+Returns:
+  {
+    "open_id": string,   // 用戶 Open ID
+    "user_id": string,   // 用戶 ID
+    "name": string,      // 用戶名稱
+    "en_name": string,   // 英文名稱
+    "email": string,     // 電子郵件
+    "mobile": string     // 手機號碼
+  }
+
+Examples:
+  - 取得當前用戶: user_me`,
       inputSchema: UserMeSchema,
       annotations: {
         readOnlyHint: true,
@@ -120,9 +151,27 @@ Example: user_me`,
     "user_get",
     {
       title: "Get User by ID",
-      description: `查詢用戶資訊。回傳 name、email、mobile、department。
+      description: `根據用戶 ID 查詢用戶資訊。
 
-Example: user_get user_id=ou_xxxxx`,
+Args:
+  - user_id (string): 用戶 ID，支援 open_id 或 user_id 格式（必填）
+
+Returns:
+  {
+    "open_id": string,        // 用戶 Open ID
+    "user_id": string,        // 用戶 ID
+    "name": string,           // 用戶名稱
+    "en_name": string,        // 英文名稱
+    "email": string,          // 電子郵件
+    "mobile": string,         // 手機號碼
+    "department_ids": array   // 所屬部門 ID 列表
+  }
+
+Examples:
+  - 查詢用戶: user_get user_id=ou_xxxxx
+
+Permissions:
+  - contact:user.base:readonly`,
       inputSchema: UserGetSchema,
       annotations: {
         readOnlyHint: true,
@@ -170,9 +219,28 @@ Example: user_get user_id=ou_xxxxx`,
     "user_list",
     {
       title: "List Department Users",
-      description: `列出部門成員。回傳 open_id、name、email。
+      description: `列出指定部門的成員。
 
-Example: user_list department_id=0`,
+Args:
+  - department_id (string, optional): 部門 ID，不填則列出根部門 "0"
+  - limit (number, optional): 最大結果數，預設 20，範圍 1-100
+  - response_format (string, optional): 輸出格式 "json" 或 "markdown"
+
+Returns:
+  [
+    {
+      "open_id": string,  // 用戶 Open ID
+      "name": string,     // 用戶名稱
+      "email": string     // 電子郵件
+    }
+  ]
+
+Examples:
+  - 列出根部門成員: user_list
+  - 列出指定部門: user_list department_id=od_xxxxx
+
+Permissions:
+  - contact:contact.base:readonly`,
       inputSchema: UserListSchema,
       annotations: {
         readOnlyHint: true,

@@ -34,9 +34,19 @@ export function registerWikiTools(server: McpServer): void {
     "wiki_read",
     {
       title: "Read Wiki Document",
-      description: `讀取 Wiki 內容，回傳原始 blocks。需要顯示給用戶時使用 blocks_to_markdown 轉換。
+      description: `讀取 Wiki 頁面內容，回傳原始 Lark blocks 陣列。
 
-Example: wiki_read wiki_token=wikcnXXXXX`,
+Args:
+  - wiki_token (string): Wiki 節點 Token（必填）
+
+Returns:
+  Lark Block 陣列（原始格式）。需要顯示給用戶時，使用 blocks_to_markdown 轉換為 Markdown。
+
+Examples:
+  - 讀取 Wiki 頁面: wiki_read wiki_token=wikcnXXXXX
+
+Permissions:
+  - wiki:wiki`,
       inputSchema: WikiReadSchema,
       annotations: {
         readOnlyHint: true,
@@ -63,9 +73,23 @@ Example: wiki_read wiki_token=wikcnXXXXX`,
     "wiki_prepend",
     {
       title: "Prepend to Wiki",
-      description: `在 Wiki 頂部插入內容。回傳區塊數量與 URL。
+      description: `在 Wiki 頁面頂部插入 Markdown 內容。
 
-Example: wiki_prepend wiki_token=wikcnXXXXX content="# Title"`,
+Args:
+  - wiki_token (string): Wiki 節點 Token（必填）
+  - content (string): 要插入的 Markdown 內容（必填）
+
+Returns:
+  {
+    "wiki_url": string  // Wiki 頁面 URL
+  }
+
+Examples:
+  - 在頂部加標題: wiki_prepend wiki_token=wikcnXXXXX content="# Title"
+  - 插入多行內容: wiki_prepend wiki_token=wikcnXXXXX content="# Header\\n\\nParagraph"
+
+Permissions:
+  - wiki:wiki`,
       inputSchema: WikiContentSchema,
       annotations: {
         readOnlyHint: false,
@@ -97,9 +121,22 @@ Example: wiki_prepend wiki_token=wikcnXXXXX content="# Title"`,
     "wiki_append",
     {
       title: "Append to Wiki",
-      description: `在 Wiki 底部追加內容。回傳區塊數量與 URL。
+      description: `在 Wiki 頁面底部追加 Markdown 內容。
 
-Example: wiki_append wiki_token=wikcnXXXXX content="## Footer"`,
+Args:
+  - wiki_token (string): Wiki 節點 Token（必填）
+  - content (string): 要追加的 Markdown 內容（必填）
+
+Returns:
+  {
+    "wiki_url": string  // Wiki 頁面 URL
+  }
+
+Examples:
+  - 追加頁尾: wiki_append wiki_token=wikcnXXXXX content="## Footer"
+
+Permissions:
+  - wiki:wiki`,
       inputSchema: WikiContentSchema,
       annotations: {
         readOnlyHint: false,
@@ -133,9 +170,25 @@ Example: wiki_append wiki_token=wikcnXXXXX content="## Footer"`,
     "wiki_update",
     {
       title: "Update Wiki Content",
-      description: `更新 Wiki 內容。支援範圍更新（需 start_index + end_index）或全文重寫。
+      description: `更新 Wiki 頁面內容。支援範圍更新或全文重寫。
 
-Example: wiki_update wiki_token=wikcnXXXXX content="# New Content"`,
+Args:
+  - wiki_token (string): Wiki 節點 Token（必填）
+  - content (string): 新的 Markdown 內容（必填）
+  - start_index (number, optional): 範圍更新起始位置
+  - end_index (number, optional): 範圍更新結束位置（不包含）
+
+Returns:
+  {
+    "wiki_url": string  // Wiki 頁面 URL
+  }
+
+Examples:
+  - 全文重寫: wiki_update wiki_token=wikcnXXXXX content="# New Content"
+  - 範圍更新: wiki_update wiki_token=wikcnXXXXX content="Replaced" start_index=0 end_index=3
+
+Permissions:
+  - wiki:wiki`,
       inputSchema: WikiUpdateSchema,
       annotations: {
         readOnlyHint: false,
@@ -218,9 +271,24 @@ Example: wiki_update wiki_token=wikcnXXXXX content="# New Content"`,
     "wiki_insert_blocks",
     {
       title: "Insert Blocks to Wiki",
-      description: `在 Wiki 指定位置插入內容。回傳位置與 URL。
+      description: `在 Wiki 頁面指定位置插入 Markdown 內容。
 
-Example: wiki_insert_blocks wiki_token=wikcnXXXXX content="New" index=5`,
+Args:
+  - wiki_token (string): Wiki 節點 Token（必填）
+  - content (string): 要插入的 Markdown 內容（必填）
+  - index (number, optional): 插入位置，從 0 開始，預設 0
+
+Returns:
+  {
+    "wiki_url": string  // Wiki 頁面 URL
+  }
+
+Examples:
+  - 在開頭插入: wiki_insert_blocks wiki_token=wikcnXXXXX content="# Title"
+  - 在指定位置: wiki_insert_blocks wiki_token=wikcnXXXXX content="New" index=5
+
+Permissions:
+  - wiki:wiki`,
       inputSchema: WikiInsertBlocksSchema,
       annotations: {
         readOnlyHint: false,
@@ -252,9 +320,23 @@ Example: wiki_insert_blocks wiki_token=wikcnXXXXX content="New" index=5`,
     "wiki_delete_blocks",
     {
       title: "Delete Wiki Blocks",
-      description: `刪除 Wiki 指定範圍的區塊。回傳刪除數量與 URL。
+      description: `刪除 Wiki 頁面指定範圍的區塊。此操作不可逆。
 
-Example: wiki_delete_blocks wiki_token=wikcnXXXXX start_index=2 end_index=5`,
+Args:
+  - wiki_token (string): Wiki 節點 Token（必填）
+  - start_index (number): 起始位置，從 0 開始（必填）
+  - end_index (number): 結束位置，不包含（必填）
+
+Returns:
+  {
+    "wiki_url": string  // Wiki 頁面 URL
+  }
+
+Examples:
+  - 刪除區塊: wiki_delete_blocks wiki_token=wikcnXXXXX start_index=2 end_index=5
+
+Permissions:
+  - wiki:wiki`,
       inputSchema: WikiDeleteBlocksSchema,
       annotations: {
         readOnlyHint: false,
@@ -297,9 +379,30 @@ Example: wiki_delete_blocks wiki_token=wikcnXXXXX start_index=2 end_index=5`,
     "wiki_list_nodes",
     {
       title: "List Wiki Nodes",
-      description: `列出 Wiki 空間節點。回傳 token、title、type、has_children。
+      description: `列出 Wiki 空間中的節點（頁面）。
 
-Example: wiki_list_nodes space_id=7XXXXXX`,
+Args:
+  - space_id (string): Wiki 空間 ID（必填）
+  - parent_node_token (string, optional): 父節點 Token，不填則列出根節點
+  - limit (number, optional): 最大結果數，預設 20
+  - response_format (string, optional): 輸出格式 "json" 或 "markdown"
+
+Returns:
+  [
+    {
+      "token": string,        // 節點 Token
+      "title": string,        // 節點標題
+      "type": string,         // 類型
+      "has_children": boolean // 是否有子節點
+    }
+  ]
+
+Examples:
+  - 列出根節點: wiki_list_nodes space_id=7XXXXXX
+  - 列出子節點: wiki_list_nodes space_id=7XXXXXX parent_node_token=wikcnXXX
+
+Permissions:
+  - wiki:wiki`,
       inputSchema: WikiListNodesSchema,
       annotations: {
         readOnlyHint: true,
@@ -412,9 +515,26 @@ Permissions:
     "wiki_spaces",
     {
       title: "List Wiki Spaces",
-      description: `列出所有 Wiki 空間。回傳 space_id、name、description。
+      description: `列出用戶可存取的所有 Wiki 空間。
 
-Example: wiki_spaces`,
+Args:
+  - limit (number, optional): 最大結果數，預設 20
+  - response_format (string, optional): 輸出格式 "json" 或 "markdown"
+
+Returns:
+  [
+    {
+      "space_id": string,     // 空間 ID
+      "name": string,         // 空間名稱
+      "description": string   // 空間描述
+    }
+  ]
+
+Examples:
+  - 列出所有空間: wiki_spaces
+
+Permissions:
+  - wiki:wiki`,
       inputSchema: WikiSpacesSchema,
       annotations: {
         readOnlyHint: true,
@@ -455,12 +575,35 @@ Example: wiki_spaces`,
     "lark_search",
     {
       title: "Global Search",
-      description: `全域搜尋 Lark 文件、Wiki、Drive。回傳 token、name、type、url。
+      description: `全域搜尋 Lark 文件、Wiki、Drive。支援類型與範圍過濾。
+
+Args:
+  - query (string): 搜尋關鍵字（必填）
+  - doc_type (string, optional): 文件類型過濾（all/doc/docx/sheet/bitable/wiki/file）
+  - folder_token (string, optional): 限定特定資料夾
+  - wiki_space_id (string, optional): 限定特定 Wiki 空間
+  - limit (number, optional): 最大結果數，預設 10
+  - offset (number, optional): 分頁偏移量
+  - response_format (string, optional): 輸出格式
+
+Returns:
+  [
+    {
+      "token": string,  // 文件 Token
+      "name": string,   // 文件名稱
+      "type": string,   // 文件類型
+      "url": string     // 文件 URL
+    }
+  ]
 
 Examples:
-- lark_search query="report"
-- lark_search query="meeting" doc_type="wiki"
-- lark_search query="notes" folder_token="fldcnXXX"`,
+  - 基本搜尋: lark_search query="report"
+  - 搜尋 Wiki: lark_search query="meeting" doc_type="wiki"
+  - 限定資料夾: lark_search query="notes" folder_token="fldcnXXX"
+
+Permissions:
+  - drive:drive
+  - wiki:wiki`,
       inputSchema: SearchAllSchema,
       annotations: {
         readOnlyHint: true,

@@ -35,9 +35,26 @@ export function registerDocTools(server: McpServer): void {
     "doc_create",
     {
       title: "Create Document",
-      description: `建立新文件。回傳 document_id、title、url。
+      description: `在指定資料夾建立新文件。
 
-Example: doc_create folder_token=fldcnXXXXX title="Meeting Notes"`,
+Args:
+  - folder_token (string): 目標資料夾 Token（必填）
+  - title (string): 文件標題（必填）
+  - content (string, optional): 初始 Markdown 內容
+
+Returns:
+  {
+    "document_id": string,  // 文件 ID
+    "title": string,        // 文件標題
+    "url": string           // 文件 URL
+  }
+
+Examples:
+  - 建立空文件: doc_create folder_token=fldcnXXXXX title="Meeting Notes"
+  - 建立有內容的文件: doc_create folder_token=fldcnXXXXX title="Report" content="# Summary"
+
+Permissions:
+  - drive:drive`,
       inputSchema: DocCreateSchema,
       annotations: {
         readOnlyHint: false,
@@ -73,9 +90,19 @@ Example: doc_create folder_token=fldcnXXXXX title="Meeting Notes"`,
     "doc_read",
     {
       title: "Read Document",
-      description: `讀取文件內容，回傳原始 blocks。需要顯示給用戶時使用 blocks_to_markdown 轉換。
+      description: `讀取文件內容，回傳原始 Lark blocks。
 
-Example: doc_read document_id=doccnXXXXX`,
+Args:
+  - document_id (string): 文件 ID（必填）
+
+Returns:
+  Lark Block 陣列（原始格式）。需要顯示給用戶時，使用 blocks_to_markdown 轉換為 Markdown。
+
+Examples:
+  - 讀取文件: doc_read document_id=doccnXXXXX
+
+Permissions:
+  - drive:drive`,
       inputSchema: DocReadSchema,
       annotations: {
         readOnlyHint: true,
@@ -101,9 +128,26 @@ Example: doc_read document_id=doccnXXXXX`,
     "doc_update",
     {
       title: "Update Document",
-      description: `更新文件內容。支援範圍更新（需 start_index + end_index）或全文重寫。
+      description: `更新文件內容。支援範圍更新或全文重寫。
 
-Example: doc_update document_id=doccnXXXXX content="# New Content"`,
+Args:
+  - document_id (string): 文件 ID（必填）
+  - content (string): 新的 Markdown 內容（必填）
+  - start_index (number, optional): 範圍更新起始位置（需配合 end_index）
+  - end_index (number, optional): 範圍更新結束位置（不包含）
+
+Returns:
+  {
+    "document_id": string,  // 文件 ID
+    "url": string           // 文件 URL
+  }
+
+Examples:
+  - 全文重寫: doc_update document_id=doccnXXXXX content="# New Content"
+  - 範圍更新: doc_update document_id=doccnXXXXX content="New" start_index=0 end_index=3
+
+Permissions:
+  - drive:drive`,
       inputSchema: DocUpdateSchema,
       annotations: {
         readOnlyHint: false,
@@ -186,9 +230,21 @@ Example: doc_update document_id=doccnXXXXX content="# New Content"`,
     "doc_delete",
     {
       title: "Delete Document",
-      description: `刪除文件。
+      description: `刪除指定文件。此操作不可逆。
 
-Example: doc_delete document_id=doccnXXXXX`,
+Args:
+  - document_id (string): 文件 ID（必填）
+
+Returns:
+  {
+    "document_id": string  // 已刪除的文件 ID
+  }
+
+Examples:
+  - 刪除文件: doc_delete document_id=doccnXXXXX
+
+Permissions:
+  - drive:drive`,
       inputSchema: DocDeleteSchema,
       annotations: {
         readOnlyHint: false,
@@ -218,9 +274,25 @@ Example: doc_delete document_id=doccnXXXXX`,
     "doc_insert_blocks",
     {
       title: "Insert Blocks to Document",
-      description: `在文件指定位置插入內容。回傳位置與 URL。
+      description: `在文件指定位置插入內容。
 
-Example: doc_insert_blocks document_id=doccnXXXXX content="New" index=5`,
+Args:
+  - document_id (string): 文件 ID（必填）
+  - content (string): Markdown 內容（必填）
+  - index (number, optional): 插入位置，從 0 開始，預設 0
+
+Returns:
+  {
+    "document_id": string,  // 文件 ID
+    "url": string           // 文件 URL
+  }
+
+Examples:
+  - 在開頭插入: doc_insert_blocks document_id=doccnXXXXX content="# Title"
+  - 在指定位置插入: doc_insert_blocks document_id=doccnXXXXX content="New" index=5
+
+Permissions:
+  - drive:drive`,
       inputSchema: DocInsertBlocksSchema,
       annotations: {
         readOnlyHint: false,
@@ -252,9 +324,24 @@ Example: doc_insert_blocks document_id=doccnXXXXX content="New" index=5`,
     "doc_delete_blocks",
     {
       title: "Delete Document Blocks",
-      description: `刪除文件指定範圍的區塊。回傳刪除數量與 URL。
+      description: `刪除文件指定範圍的區塊。
 
-Example: doc_delete_blocks document_id=doccnXXXXX start_index=2 end_index=5`,
+Args:
+  - document_id (string): 文件 ID（必填）
+  - start_index (number): 起始位置，從 0 開始（必填）
+  - end_index (number): 結束位置，不包含（必填）
+
+Returns:
+  {
+    "document_id": string,  // 文件 ID
+    "url": string           // 文件 URL
+  }
+
+Examples:
+  - 刪除第 2-4 個區塊: doc_delete_blocks document_id=doccnXXXXX start_index=2 end_index=5
+
+Permissions:
+  - drive:drive`,
       inputSchema: DocDeleteBlocksSchema,
       annotations: {
         readOnlyHint: false,
@@ -297,9 +384,30 @@ Example: doc_delete_blocks document_id=doccnXXXXX start_index=2 end_index=5`,
     "drive_list",
     {
       title: "List Drive Files",
-      description: `列出雲端硬碟檔案。回傳 token、name、type、parent_token、url。
+      description: `列出雲端硬碟資料夾中的檔案。
 
-Example: drive_list folder_token=fldcnXXXXX`,
+Args:
+  - folder_token (string, optional): 資料夾 Token，不填則列出根目錄
+  - limit (number, optional): 最大結果數，預設 20，範圍 1-100
+  - response_format (string, optional): 輸出格式 "json" 或 "markdown"
+
+Returns:
+  [
+    {
+      "token": string,         // 檔案 Token
+      "name": string,          // 檔案名稱
+      "type": string,          // 類型（folder/doc/docx/sheet/bitable）
+      "parent_token": string,  // 父資料夾 Token
+      "url": string            // 檔案 URL
+    }
+  ]
+
+Examples:
+  - 列出根目錄: drive_list
+  - 列出指定資料夾: drive_list folder_token=fldcnXXXXX
+
+Permissions:
+  - drive:drive`,
       inputSchema: DriveListSchema,
       annotations: {
         readOnlyHint: true,
@@ -354,9 +462,28 @@ Example: drive_list folder_token=fldcnXXXXX`,
     "drive_recent",
     {
       title: "Recent Files",
-      description: `列出最近存取的檔案。回傳 token、name、type、url。
+      description: `列出最近存取的檔案。
 
-Example: drive_recent`,
+Args:
+  - limit (number, optional): 最大結果數，預設 20，範圍 1-100
+  - response_format (string, optional): 輸出格式 "json" 或 "markdown"
+
+Returns:
+  [
+    {
+      "token": string,  // 檔案 Token
+      "name": string,   // 檔案名稱
+      "type": string,   // 類型
+      "url": string     // 檔案 URL
+    }
+  ]
+
+Examples:
+  - 列出最近檔案: drive_recent
+  - 限制數量: drive_recent limit=5
+
+Permissions:
+  - drive:drive`,
       inputSchema: DriveRecentSchema,
       annotations: {
         readOnlyHint: true,
@@ -426,9 +553,17 @@ Example: drive_recent`,
     "blocks_to_markdown",
     {
       title: "Convert Blocks to Markdown",
-      description: `將 Lark blocks 轉換為 Markdown。用於顯示 wiki_read/doc_read 的內容給用戶。
+      description: `將 Lark blocks 轉換為 Markdown 格式。用於顯示 wiki_read/doc_read 的原始內容給用戶閱讀。
 
-Example: blocks_to_markdown blocks=[...]`,
+Args:
+  - blocks (array): Lark blocks 陣列，來自 wiki_read 或 doc_read（必填）
+
+Returns:
+  Markdown 格式的文字內容（會自動截斷過長內容）
+
+Examples:
+  - 轉換文件內容: blocks_to_markdown blocks=[...]
+  - 搭配 doc_read 使用: 先執行 doc_read，再將回傳的 blocks 傳入此工具`,
       inputSchema: BlocksToMarkdownSchema,
       annotations: {
         readOnlyHint: true,

@@ -40,9 +40,26 @@ export function registerTodoTools(server: McpServer): void {
     "todo_create",
     {
       title: "Create Task",
-      description: `建立待辦事項。回傳 id、summary。
+      description: `建立待辦事項。
 
-Example: todo_create summary="Review PR"`,
+Args:
+  - summary (string): 任務摘要（必填）
+  - description (string, optional): 詳細描述
+  - due_time (string, optional): 截止時間（ISO 8601 格式）
+  - response_format (string, optional): 輸出格式
+
+Returns:
+  {
+    "id": string,      // 任務 ID
+    "summary": string  // 任務摘要
+  }
+
+Examples:
+  - 建立任務: todo_create summary="Review PR"
+  - 含截止日: todo_create summary="Submit report" due_time="2024-12-31T23:59:59+08:00"
+
+Permissions:
+  - task:task`,
       inputSchema: TodoCreateSchema,
       annotations: {
         readOnlyHint: false,
@@ -86,9 +103,29 @@ Example: todo_create summary="Review PR"`,
     "todo_list",
     {
       title: "List Tasks",
-      description: `列出待辦事項。回傳 id、summary、due_time、is_completed。
+      description: `列出待辦事項。
 
-Example: todo_list completed=true`,
+Args:
+  - completed (boolean, optional): 過濾已完成/未完成任務
+  - limit (number, optional): 最大結果數，預設 20
+  - response_format (string, optional): 輸出格式
+
+Returns:
+  [
+    {
+      "id": string,           // 任務 ID
+      "summary": string,      // 任務摘要
+      "due_time": string,     // 截止時間
+      "is_completed": boolean // 是否已完成
+    }
+  ]
+
+Examples:
+  - 列出所有任務: todo_list
+  - 只看已完成: todo_list completed=true
+
+Permissions:
+  - task:task`,
       inputSchema: TodoListSchema,
       annotations: {
         readOnlyHint: true,
@@ -141,9 +178,30 @@ Example: todo_list completed=true`,
     "todo_search",
     {
       title: "Search Tasks",
-      description: `搜尋待辦事項。回傳符合關鍵字的任務清單。
+      description: `搜尋待辦事項。在 summary 和 description 中搜尋關鍵字。
 
-Example: todo_search query="meeting"`,
+Args:
+  - query (string): 搜尋關鍵字（必填）
+  - completed (boolean, optional): 過濾已完成/未完成任務
+  - limit (number, optional): 最大結果數，預設 10
+  - response_format (string, optional): 輸出格式
+
+Returns:
+  [
+    {
+      "id": string,           // 任務 ID
+      "summary": string,      // 任務摘要
+      "due_time": string,     // 截止時間
+      "is_completed": boolean // 是否已完成
+    }
+  ]
+
+Examples:
+  - 搜尋任務: todo_search query="meeting"
+  - 搜尋未完成: todo_search query="report" completed=false
+
+Permissions:
+  - task:task`,
       inputSchema: TodoSearchSchema,
       annotations: {
         readOnlyHint: true,
@@ -198,7 +256,19 @@ Example: todo_search query="meeting"`,
       title: "Complete Task",
       description: `將任務或子任務標記為已完成。適用於 todo 和 subtask。
 
-Example: task_complete task_id=7XXXXXX`,
+Args:
+  - task_id (string): 任務 ID（必填）
+
+Returns:
+  {
+    "task_id": string  // 已完成的任務 ID
+  }
+
+Examples:
+  - 完成任務: task_complete task_id=7XXXXXX
+
+Permissions:
+  - task:task`,
       inputSchema: TodoCompleteSchema,
       annotations: {
         readOnlyHint: false,
@@ -234,7 +304,25 @@ Example: task_complete task_id=7XXXXXX`,
       title: "Update Task",
       description: `更新待辦事項。至少需提供一個更新欄位。
 
-Example: todo_update task_id=7XXXXXX summary="Updated"`,
+Args:
+  - task_id (string): 任務 ID（必填）
+  - summary (string, optional): 新摘要
+  - description (string, optional): 新描述
+  - start_time (string, optional): 開始時間（ISO 8601）
+  - due_time (string, optional): 截止時間（ISO 8601）
+
+Returns:
+  {
+    "task_id": string,          // 任務 ID
+    "updated_fields": string[]  // 已更新的欄位
+  }
+
+Examples:
+  - 更新摘要: todo_update task_id=7XXXXXX summary="Updated"
+  - 更新截止日: todo_update task_id=7XXXXXX due_time="2024-12-31T23:59:59+08:00"
+
+Permissions:
+  - task:task`,
       inputSchema: TodoUpdateSchema,
       annotations: {
         readOnlyHint: false,
@@ -297,9 +385,21 @@ Example: todo_update task_id=7XXXXXX summary="Updated"`,
     "task_delete",
     {
       title: "Delete Task",
-      description: `刪除任務或子任務。適用於 todo 和 subtask。
+      description: `刪除任務或子任務。此操作不可逆。適用於 todo 和 subtask。
 
-Example: task_delete task_id=7XXXXXX`,
+Args:
+  - task_id (string): 任務 ID（必填）
+
+Returns:
+  {
+    "task_id": string  // 已刪除的任務 ID
+  }
+
+Examples:
+  - 刪除任務: task_delete task_id=7XXXXXX
+
+Permissions:
+  - task:task`,
       inputSchema: TodoDeleteSchema,
       annotations: {
         readOnlyHint: false,
@@ -330,7 +430,21 @@ Example: task_delete task_id=7XXXXXX`,
       title: "Add Task Members",
       description: `新增任務負責人。
 
-Example: todo_add_members task_id=7XXXXXX members=["ou_xxxxx"]`,
+Args:
+  - task_id (string): 任務 ID（必填）
+  - members (string[]): 用戶 ID 陣列（open_id 或 user_id）（必填）
+
+Returns:
+  {
+    "task_id": string,   // 任務 ID
+    "added": string[]    // 已新增的成員 ID
+  }
+
+Examples:
+  - 新增負責人: todo_add_members task_id=7XXXXXX members=["ou_xxxxx"]
+
+Permissions:
+  - task:task`,
       inputSchema: TodoAddMembersSchema,
       annotations: {
         readOnlyHint: false,
@@ -365,7 +479,21 @@ Example: todo_add_members task_id=7XXXXXX members=["ou_xxxxx"]`,
       title: "Remove Task Members",
       description: `移除任務負責人。
 
-Example: todo_remove_members task_id=7XXXXXX members=["ou_xxxxx"]`,
+Args:
+  - task_id (string): 任務 ID（必填）
+  - members (string[]): 用戶 ID 陣列（open_id 或 user_id）（必填）
+
+Returns:
+  {
+    "task_id": string,    // 任務 ID
+    "removed": string[]   // 已移除的成員 ID
+  }
+
+Examples:
+  - 移除負責人: todo_remove_members task_id=7XXXXXX members=["ou_xxxxx"]
+
+Permissions:
+  - task:task`,
       inputSchema: TodoRemoveMembersSchema,
       annotations: {
         readOnlyHint: false,
@@ -398,9 +526,23 @@ Example: todo_remove_members task_id=7XXXXXX members=["ou_xxxxx"]`,
     "tasklist_create",
     {
       title: "Create Tasklist",
-      description: `建立任務清單（任務容器）。回傳 id、name。
+      description: `建立任務清單（任務容器）。
 
-Example: tasklist_create name="Project Tasks"`,
+Args:
+  - name (string): 清單名稱（必填）
+  - response_format (string, optional): 輸出格式
+
+Returns:
+  {
+    "id": string,    // 清單 ID
+    "name": string   // 清單名稱
+  }
+
+Examples:
+  - 建立清單: tasklist_create name="Project Tasks"
+
+Permissions:
+  - task:task`,
       inputSchema: TasklistCreateSchema,
       annotations: {
         readOnlyHint: false,
@@ -435,9 +577,25 @@ Example: tasklist_create name="Project Tasks"`,
     "tasklist_list",
     {
       title: "List Tasklists",
-      description: `列出所有任務清單。回傳 id、name。
+      description: `列出所有任務清單。
 
-Example: tasklist_list`,
+Args:
+  - limit (number, optional): 最大結果數，預設 20
+  - response_format (string, optional): 輸出格式
+
+Returns:
+  [
+    {
+      "id": string,    // 清單 ID
+      "name": string   // 清單名稱
+    }
+  ]
+
+Examples:
+  - 列出清單: tasklist_list
+
+Permissions:
+  - task:task`,
       inputSchema: TasklistListSchema,
       annotations: {
         readOnlyHint: true,
@@ -473,9 +631,25 @@ Example: tasklist_list`,
     "tasklist_get",
     {
       title: "Get Tasklist Details",
-      description: `取得任務清單詳情。回傳 id、name、creator、members。
+      description: `取得任務清單詳情。
 
-Example: tasklist_get tasklist_id=7XXXXXX`,
+Args:
+  - tasklist_id (string): 清單 ID（必填）
+  - response_format (string, optional): 輸出格式
+
+Returns:
+  {
+    "id": string,        // 清單 ID
+    "name": string,      // 清單名稱
+    "creator": string,   // 建立者名稱
+    "members": string[]  // 成員名稱列表
+  }
+
+Examples:
+  - 取得詳情: tasklist_get tasklist_id=7XXXXXX
+
+Permissions:
+  - task:task`,
       inputSchema: TasklistGetSchema,
       annotations: {
         readOnlyHint: true,
@@ -514,9 +688,23 @@ Example: tasklist_get tasklist_id=7XXXXXX`,
     "tasklist_update",
     {
       title: "Update Tasklist",
-      description: `更新任務清單名稱。回傳 id、name。
+      description: `更新任務清單名稱。
 
-Example: tasklist_update tasklist_id=7XXXXXX name="New Name"`,
+Args:
+  - tasklist_id (string): 清單 ID（必填）
+  - name (string, optional): 新名稱
+
+Returns:
+  {
+    "id": string,    // 清單 ID
+    "name": string   // 更新後的名稱
+  }
+
+Examples:
+  - 更新名稱: tasklist_update tasklist_id=7XXXXXX name="New Name"
+
+Permissions:
+  - task:task`,
       inputSchema: TasklistUpdateSchema,
       annotations: {
         readOnlyHint: false,
@@ -558,9 +746,21 @@ Example: tasklist_update tasklist_id=7XXXXXX name="New Name"`,
     "tasklist_delete",
     {
       title: "Delete Tasklist",
-      description: `刪除任務清單。
+      description: `刪除任務清單。此操作不可逆。
 
-Example: tasklist_delete tasklist_id=7XXXXXX`,
+Args:
+  - tasklist_id (string): 清單 ID（必填）
+
+Returns:
+  {
+    "tasklist_id": string  // 已刪除的清單 ID
+  }
+
+Examples:
+  - 刪除清單: tasklist_delete tasklist_id=7XXXXXX
+
+Permissions:
+  - task:task`,
       inputSchema: TasklistDeleteSchema,
       annotations: {
         readOnlyHint: false,
@@ -591,7 +791,24 @@ Example: tasklist_delete tasklist_id=7XXXXXX`,
       title: "Add Task to Tasklist",
       description: `將任務加入任務清單。
 
-Example: tasklist_add_task tasklist_id=7XXXXXX task_id=7YYYYYY section_guid=zzz`,
+Args:
+  - tasklist_id (string): 清單 ID（必填）
+  - task_id (string): 任務 ID（必填）
+  - section_guid (string, optional): 分組 GUID
+
+Returns:
+  {
+    "tasklist_id": string,   // 清單 ID
+    "task_id": string,       // 任務 ID
+    "section_guid": string   // 分組 GUID
+  }
+
+Examples:
+  - 加入清單: tasklist_add_task tasklist_id=7XXXXXX task_id=7YYYYYY
+  - 加入分組: tasklist_add_task tasklist_id=7XXXXXX task_id=7YYYYYY section_guid=zzz
+
+Permissions:
+  - task:task`,
       inputSchema: TasklistAddTaskSchema,
       annotations: {
         readOnlyHint: false,
@@ -628,7 +845,21 @@ Example: tasklist_add_task tasklist_id=7XXXXXX task_id=7YYYYYY section_guid=zzz`
       title: "Remove Task from Tasklist",
       description: `從任務清單移除任務。
 
-Example: tasklist_remove_task tasklist_id=7XXXXXX task_id=7YYYYYY`,
+Args:
+  - tasklist_id (string): 清單 ID（必填）
+  - task_id (string): 任務 ID（必填）
+
+Returns:
+  {
+    "tasklist_id": string,  // 清單 ID
+    "task_id": string       // 已移除的任務 ID
+  }
+
+Examples:
+  - 移除任務: tasklist_remove_task tasklist_id=7XXXXXX task_id=7YYYYYY
+
+Permissions:
+  - task:task`,
       inputSchema: TasklistRemoveTaskSchema,
       annotations: {
         readOnlyHint: false,
@@ -658,9 +889,27 @@ Example: tasklist_remove_task tasklist_id=7XXXXXX task_id=7YYYYYY`,
     "tasklist_tasks",
     {
       title: "List Tasks in Tasklist",
-      description: `列出任務清單中的任務。回傳 id、summary、is_completed。
+      description: `列出任務清單中的任務。
 
-Example: tasklist_tasks tasklist_id=7XXXXXX`,
+Args:
+  - tasklist_id (string): 清單 ID（必填）
+  - limit (number, optional): 最大結果數，預設 20
+  - response_format (string, optional): 輸出格式
+
+Returns:
+  [
+    {
+      "id": string,           // 任務 ID
+      "summary": string,      // 任務摘要
+      "is_completed": boolean // 是否已完成
+    }
+  ]
+
+Examples:
+  - 列出任務: tasklist_tasks tasklist_id=7XXXXXX
+
+Permissions:
+  - task:task`,
       inputSchema: TasklistTasksSchema,
       annotations: {
         readOnlyHint: true,
@@ -701,9 +950,31 @@ Example: tasklist_tasks tasklist_id=7XXXXXX`,
     "subtask_create",
     {
       title: "Create Subtask",
-      description: `建立子任務。回傳 id、summary、members、時間。
+      description: `建立子任務。
 
-Example: subtask_create parent_task_id=7XXXXXX summary="完成報告"`,
+Args:
+  - parent_task_id (string): 父任務 ID（必填）
+  - summary (string): 子任務摘要（必填）
+  - members (string[], optional): 負責人 ID 陣列（open_id 或 user_id）
+  - start_time (string, optional): 開始時間（ISO 8601）
+  - due_time (string, optional): 截止時間（ISO 8601）
+  - response_format (string, optional): 輸出格式
+
+Returns:
+  {
+    "id": string,           // 子任務 ID
+    "summary": string,      // 子任務摘要
+    "parent_task_id": string,  // 父任務 ID
+    "members": string[],    // 負責人列表
+    "start_time": string,   // 開始時間
+    "due_time": string      // 截止時間
+  }
+
+Examples:
+  - 建立子任務: subtask_create parent_task_id=7XXXXXX summary="完成報告"
+
+Permissions:
+  - task:task`,
       inputSchema: SubtaskCreateSchema,
       annotations: {
         readOnlyHint: false,
@@ -780,9 +1051,30 @@ Example: subtask_create parent_task_id=7XXXXXX summary="完成報告"`,
     "subtask_list",
     {
       title: "List Subtasks",
-      description: `列出父任務的子任務。回傳 id、summary、members、時間、is_completed。
+      description: `列出父任務的子任務。
 
-Example: subtask_list parent_task_id=7XXXXXX`,
+Args:
+  - parent_task_id (string): 父任務 ID（必填）
+  - limit (number, optional): 最大結果數，預設 20
+  - response_format (string, optional): 輸出格式
+
+Returns:
+  [
+    {
+      "id": string,           // 子任務 ID
+      "summary": string,      // 子任務摘要
+      "members": string[],    // 負責人列表
+      "start_time": string,   // 開始時間
+      "due_time": string,     // 截止時間
+      "is_completed": boolean // 是否已完成
+    }
+  ]
+
+Examples:
+  - 列出子任務: subtask_list parent_task_id=7XXXXXX
+
+Permissions:
+  - task:task`,
       inputSchema: SubtaskListSchema,
       annotations: {
         readOnlyHint: true,
@@ -849,7 +1141,24 @@ Example: subtask_list parent_task_id=7XXXXXX`,
       title: "Update Subtask",
       description: `更新子任務。至少需提供一個更新欄位。
 
-Example: subtask_update task_id=7XXXXXX summary="Updated"`,
+Args:
+  - task_id (string): 子任務 ID（必填）
+  - summary (string, optional): 新摘要
+  - members (string[], optional): 新負責人 ID 陣列
+  - start_time (string, optional): 新開始時間（ISO 8601）
+  - due_time (string, optional): 新截止時間（ISO 8601）
+
+Returns:
+  {
+    "task_id": string,          // 子任務 ID
+    "updated_fields": string[]  // 已更新的欄位
+  }
+
+Examples:
+  - 更新摘要: subtask_update task_id=7XXXXXX summary="Updated"
+
+Permissions:
+  - task:task`,
       inputSchema: SubtaskUpdateSchema,
       annotations: {
         readOnlyHint: false,
@@ -915,9 +1224,28 @@ Example: subtask_update task_id=7XXXXXX summary="Updated"`,
     "section_list",
     {
       title: "List Sections",
-      description: `列出所有任務分組（Section）。回傳 guid、name。
+      description: `列出所有任務分組（Section）。
 
-Example: section_list`,
+Args:
+  - resource_type (string, optional): 資源類型 "my_tasks" 或 "tasklist"，預設 "my_tasks"
+  - resource_id (string, optional): 清單 GUID（resource_type 為 "tasklist" 時必填）
+  - limit (number, optional): 最大結果數，預設 50
+  - response_format (string, optional): 輸出格式
+
+Returns:
+  [
+    {
+      "guid": string,  // 分組 GUID
+      "name": string   // 分組名稱
+    }
+  ]
+
+Examples:
+  - 列出我的分組: section_list
+  - 列出清單分組: section_list resource_type="tasklist" resource_id=xxx
+
+Permissions:
+  - task:task`,
       inputSchema: SectionListSchema,
       annotations: {
         readOnlyHint: true,
@@ -970,9 +1298,30 @@ Example: section_list`,
     "section_tasks",
     {
       title: "List Section Tasks",
-      description: `列出分組中的任務。支援過濾未完成任務。
+      description: `列出分組中的任務。支援過濾完成狀態。
 
-Example: section_tasks section_guid=xxx completed=false`,
+Args:
+  - section_guid (string): 分組 GUID（必填）
+  - completed (boolean, optional): 過濾已完成/未完成
+  - limit (number, optional): 最大結果數，預設 50
+  - response_format (string, optional): 輸出格式
+
+Returns:
+  [
+    {
+      "id": string,           // 任務 ID
+      "summary": string,      // 任務摘要
+      "is_completed": boolean,// 是否已完成
+      "due_time": string      // 截止時間
+    }
+  ]
+
+Examples:
+  - 列出分組任務: section_tasks section_guid=xxx
+  - 只看未完成: section_tasks section_guid=xxx completed=false
+
+Permissions:
+  - task:task`,
       inputSchema: SectionTasksSchema,
       annotations: {
         readOnlyHint: true,
@@ -1036,9 +1385,26 @@ Example: section_tasks section_guid=xxx completed=false`,
     "section_create",
     {
       title: "Create Section",
-      description: `在 Tasklist 或「我負責的」中建立分組。回傳 guid、name。
+      description: `在 Tasklist 或「我負責的」中建立分組。
 
-Example: section_create name="Bug" resource_type="tasklist" resource_id=xxx`,
+Args:
+  - name (string): 分組名稱（必填）
+  - resource_type (string): 資源類型 "my_tasks" 或 "tasklist"（必填）
+  - resource_id (string, optional): 清單 GUID（resource_type 為 "tasklist" 時必填）
+  - response_format (string, optional): 輸出格式
+
+Returns:
+  {
+    "guid": string,  // 分組 GUID
+    "name": string   // 分組名稱
+  }
+
+Examples:
+  - 在我的任務建立: section_create name="Bug" resource_type="my_tasks"
+  - 在清單建立: section_create name="Bug" resource_type="tasklist" resource_id=xxx
+
+Permissions:
+  - task:task`,
       inputSchema: SectionCreateSchema,
       annotations: {
         readOnlyHint: false,
@@ -1082,9 +1448,21 @@ Example: section_create name="Bug" resource_type="tasklist" resource_id=xxx`,
     "section_delete",
     {
       title: "Delete Section",
-      description: `刪除分組。
+      description: `刪除分組。此操作不可逆。
 
-Example: section_delete section_guid=xxx`,
+Args:
+  - section_guid (string): 分組 GUID（必填）
+
+Returns:
+  {
+    "section_guid": string  // 已刪除的分組 GUID
+  }
+
+Examples:
+  - 刪除分組: section_delete section_guid=xxx
+
+Permissions:
+  - task:task`,
       inputSchema: SectionDeleteSchema,
       annotations: {
         readOnlyHint: false,
