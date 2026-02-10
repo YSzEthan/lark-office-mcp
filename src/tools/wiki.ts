@@ -11,6 +11,7 @@ import {
   WikiDeleteBlocksSchema,
   WikiListNodesSchema,
   WikiSpacesSchema,
+  WikiMoveNodeSchema,
   SearchAllSchema,
 } from "../schemas/index.js";
 import {
@@ -330,6 +331,78 @@ Example: wiki_list_nodes space_id=7XXXXXX`,
         return success(`Found ${simplified.length} nodes`, simplified, response_format);
       } catch (err) {
         return error("Wiki list nodes failed", err);
+      }
+    }
+  );
+
+  // wiki_move_node
+  server.registerTool(
+    "wiki_move_node",
+    {
+      title: "Move Wiki Node",
+      description: `移動 Wiki 節點到指定位置。支援同空間或跨空間移動，子節點會一併移動。
+
+Args:
+  - space_id (string): 節點當前所在的 Wiki 空間 ID
+  - node_token (string): 要移動的節點 Token
+  - target_parent_token (string, optional): 目標父節點 Token（不填則移到空間根目錄）
+  - target_space_id (string, optional): 目標空間 ID（跨空間移動時使用）
+
+Returns:
+  {
+    "node_token": string,        // 移動後的節點 Token
+    "space_id": string,          // 節點所在空間 ID
+    "parent_node_token": string  // 父節點 Token 或 "(root)"
+  }
+
+Examples:
+  - 同空間移動: wiki_move_node space_id=7XXX node_token=wikcnXXX target_parent_token=wikcnYYY
+  - 移到根目錄: wiki_move_node space_id=7XXX node_token=wikcnXXX
+  - 跨空間移動: wiki_move_node space_id=7XXX node_token=wikcnXXX target_space_id=7YYY
+
+Permissions:
+  - 需要節點、原父節點、目標父節點的編輯權限
+  - 需要 wiki:node:move 權限`,
+      inputSchema: WikiMoveNodeSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { space_id, node_token, target_parent_token, target_space_id } = params;
+
+        const body: Record<string, string> = {};
+        if (target_parent_token) {
+          body.target_parent_token = target_parent_token;
+        }
+        if (target_space_id) {
+          body.target_space_id = target_space_id;
+        }
+
+        const data = await larkRequest<{
+          node?: {
+            node_token?: string;
+            space_id?: string;
+            parent_node_token?: string;
+          };
+        }>(`/wiki/v2/spaces/${space_id}/nodes/${node_token}/move`, {
+          method: "POST",
+          body,
+        });
+
+        const result = {
+          node_token: data.node?.node_token || node_token,
+          space_id: data.node?.space_id || target_space_id || space_id,
+          parent_node_token: data.node?.parent_node_token || target_parent_token || "(root)",
+        };
+
+        return success("Wiki node moved", result);
+      } catch (err) {
+        return error("Wiki move node failed", err);
       }
     }
   );

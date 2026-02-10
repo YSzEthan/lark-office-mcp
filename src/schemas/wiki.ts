@@ -96,6 +96,28 @@ export const WikiListNodesSchema = z.object({
 export const WikiSpacesSchema = ListPaginationSchema.merge(ResponseFormatSchema);
 
 /**
+ * Wiki 移動節點
+ */
+export const WikiMoveNodeSchema = z.object({
+  space_id: z
+    .string()
+    .min(1)
+    .describe("Current Wiki space ID (required)"),
+  node_token: z
+    .string()
+    .min(1)
+    .describe("Node token to move (required)"),
+  target_parent_token: z
+    .string()
+    .optional()
+    .describe("Target parent node token (omit to move to space root)"),
+  target_space_id: z
+    .string()
+    .optional()
+    .describe("Target space ID for cross-space move (optional)"),
+});
+
+/**
  * 全域搜尋（整合 doc_search, wiki_search）
  */
 export const SearchAllSchema = z.object({
@@ -125,4 +147,5 @@ export type WikiInsertBlocksInput = z.infer<typeof WikiInsertBlocksSchema>;
 export type WikiDeleteBlocksInput = z.infer<typeof WikiDeleteBlocksSchema>;
 export type WikiListNodesInput = z.infer<typeof WikiListNodesSchema>;
 export type WikiSpacesInput = z.infer<typeof WikiSpacesSchema>;
+export type WikiMoveNodeInput = z.infer<typeof WikiMoveNodeSchema>;
 export type SearchAllInput = z.infer<typeof SearchAllSchema>;
