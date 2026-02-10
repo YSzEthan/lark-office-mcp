@@ -7,7 +7,7 @@ Lark (飛書) MCP Server - 讓 Claude 直接操作 Lark 文件、Wiki、待辦�
 | 項目 | 值 |
 |------|-----|
 | 名稱 | lark-mcp-server |
-| 版本 | 3.21.0 |
+| 版本 | 3.22.0 |
 | 執行環境 | Bun |
 | 認證方式 | OAuth 2.0 (User Access Token) |
 | Token 儲存 | `~/.lark-token.json` |
@@ -117,7 +117,7 @@ bun install
 | `tasklist_delete` | 刪除任務清單 |
 | `tasklist_add_task` | 將待辦加入清單（可指定分組）|
 | `tasklist_remove_task` | 從清單移除待辦 |
-| `tasklist_tasks` | 列出清單中的待辦 |
+| `tasklist_tasks` | 列出清單中的待辦（含時間欄位）|
 
 ### 子任務工具
 

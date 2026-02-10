@@ -3,7 +3,18 @@
     "allow": [
       "WebSearch",
       "mcp__context7__query-docs",
-      "mcp__context7__resolve-library-id"
+      "mcp__context7__resolve-library-id",
+      "WebFetch(domain:open.larksuite.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:blog.gitcode.com)",
+      "WebFetch(domain:open.feishu.cn)",
+      "WebFetch(domain:blog.csdn.net)",
+      "Bash(bun -e:*)",
+      "mcp__lark__wiki_insert_blocks",
+      "WebFetch(domain:www.bitwind.com)",
+      "mcp__lark__task_complete",
+      "mcp__lark__task_delete",
+      "mcp__lark__tasklist_delete"
     ]
   }
 }

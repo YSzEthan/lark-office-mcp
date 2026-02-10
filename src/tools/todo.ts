@@ -899,9 +899,12 @@ Args:
 Returns:
   [
     {
-      "id": string,           // 任務 ID
-      "summary": string,      // 任務摘要
-      "is_completed": boolean // 是否已完成
+      "id": string,            // 任務 ID
+      "summary": string,       // 任務摘要
+      "is_completed": boolean, // 是否已完成
+      "start_time": string,    // 開始時間（ISO 8601）
+      "due_time": string,      // 截止時間（ISO 8601）
+      "completed_at": string   // 完成時間（ISO 8601）
     }
   ]
 
@@ -922,21 +925,53 @@ Permissions:
       try {
         const { tasklist_id, limit, response_format } = params;
 
-        const data = await larkRequest<{
-          items?: Array<{
-            guid?: string;
-            summary?: string;
-            completed_at?: string;
-          }>;
+        // 先取得任務 ID 列表
+        const listData = await larkRequest<{
+          items?: Array<{ guid?: string }>;
         }>(`/task/v2/tasklists/${tasklist_id}/tasks`, {
           params: { page_size: limit },
         });
 
-        const tasks = (data.items || []).map((task) => ({
-          id: task.guid,
-          summary: task.summary,
-          is_completed: !!task.completed_at && task.completed_at !== "0",
-        }));
+        const taskIds = (listData.items || []).map((t) => t.guid).filter(Boolean) as string[];
+
+        if (taskIds.length === 0) {
+          return success("No tasks in tasklist", []);
+        }
+
+        // 取得每個任務的詳細資訊
+        const tasks = await Promise.all(
+          taskIds.map(async (taskId) => {
+            try {
+              const taskData = await larkRequest<{
+                task?: {
+                  guid?: string;
+                  summary?: string;
+                  start?: { timestamp?: string };
+                  due?: { timestamp?: string };
+                  completed_at?: string;
+                };
+              }>(`/task/v2/tasks/${taskId}`);
+
+              const task = taskData.task;
+              return {
+                id: task?.guid,
+                summary: task?.summary,
+                is_completed: !!task?.completed_at && task?.completed_at !== "0",
+                start_time: task?.start?.timestamp
+                  ? new Date(parseInt(task.start.timestamp) * 1000).toISOString()
+                  : null,
+                due_time: task?.due?.timestamp
+                  ? new Date(parseInt(task.due.timestamp) * 1000).toISOString()
+                  : null,
+                completed_at: task?.completed_at && task?.completed_at !== "0"
+                  ? new Date(parseInt(task.completed_at) * 1000).toISOString()
+                  : null,
+              };
+            } catch {
+              return { id: taskId, summary: "(failed to fetch)", is_completed: false };
+            }
+          })
+        );
 
         return success(`Found ${tasks.length} tasks in tasklist`, tasks, response_format);
       } catch (err) {
