@@ -24,10 +24,10 @@ export const WikiReadSchema = WikiTokenSchema;
  * Wiki 內容操作 (prepend, append, update)
  */
 export const WikiContentSchema = WikiTokenSchema.extend({
-  content: z
-    .string()
+  blocks: z
+    .array(z.record(z.unknown()))
     .min(1)
-    .describe("Markdown content to insert"),
+    .describe("Lark Block JSON array"),
 });
 
 /**

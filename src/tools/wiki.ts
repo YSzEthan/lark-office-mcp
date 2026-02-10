@@ -22,7 +22,7 @@ import {
   insertBlocks,
   larkRequest,
 } from "../services/lark-client.js";
-import { markdownToBlocks, blocksToMarkdown } from "../utils/markdown.js";
+import { blocksToMarkdown } from "../utils/markdown.js";
 import { success, error, simplifyNodeList, simplifySearchResults, truncate } from "../utils/response.js";
 import { WIKI_URL, ResponseFormat } from "../constants.js";
 
@@ -74,11 +74,11 @@ Permissions:
     "wiki_prepend",
     {
       title: "Prepend to Wiki",
-      description: `在 Wiki 頁面頂部插入 Markdown 內容。
+      description: `在 Wiki 頁面頂部插入內容。
 
 Args:
   - wiki_token (string): Wiki 節點 Token（必填）
-  - content (string): 要插入的 Markdown 內容（必填）
+  - blocks (array): Lark Block JSON 陣列（必填）
 
 Returns:
   {
@@ -86,8 +86,8 @@ Returns:
   }
 
 Examples:
-  - 在頂部加標題: wiki_prepend wiki_token=wikcnXXXXX content="# Title"
-  - 插入多行內容: wiki_prepend wiki_token=wikcnXXXXX content="# Header\\n\\nParagraph"
+  - 插入標題: wiki_prepend wiki_token=wikcnXXXXX blocks=[{"block_type":3,"heading1":{"elements":[{"text_run":{"content":"Title"}}]}}]
+  - 插入段落: wiki_prepend wiki_token=wikcnXXXXX blocks=[{"block_type":2,"text":{"elements":[{"text_run":{"content":"Hello"}}]}}]
 
 Permissions:
   - wiki:wiki`,
@@ -101,10 +101,9 @@ Permissions:
     },
     async (params) => {
       try {
-        const { wiki_token, content } = params;
+        const { wiki_token, blocks } = params;
         const node = await getWikiNode(wiki_token);
         const rootBlockId = await getDocumentRootBlockId(node.objToken);
-        const blocks = markdownToBlocks(content);
 
         await insertBlocks(node.objToken, rootBlockId, blocks, 0);
 
@@ -122,11 +121,11 @@ Permissions:
     "wiki_append",
     {
       title: "Append to Wiki",
-      description: `在 Wiki 頁面底部追加 Markdown 內容。
+      description: `在 Wiki 頁面底部追加內容。
 
 Args:
   - wiki_token (string): Wiki 節點 Token（必填）
-  - content (string): 要追加的 Markdown 內容（必填）
+  - blocks (array): Lark Block JSON 陣列（必填）
 
 Returns:
   {
@@ -134,7 +133,7 @@ Returns:
   }
 
 Examples:
-  - 追加頁尾: wiki_append wiki_token=wikcnXXXXX content="## Footer"
+  - 追加頁尾: wiki_append wiki_token=wikcnXXXXX blocks=[{"block_type":4,"heading2":{"elements":[{"text_run":{"content":"Footer"}}]}}]
 
 Permissions:
   - wiki:wiki`,
@@ -148,12 +147,11 @@ Permissions:
     },
     async (params) => {
       try {
-        const { wiki_token, content } = params;
+        const { wiki_token, blocks } = params;
         const node = await getWikiNode(wiki_token);
         const rootBlockId = await getDocumentRootBlockId(node.objToken);
         const existingBlocks = await getDocumentBlocks(node.objToken);
         const insertIndex = Math.max(0, existingBlocks.length - 1);
-        const blocks = markdownToBlocks(content);
 
         await insertBlocks(node.objToken, rootBlockId, blocks, insertIndex);
 
@@ -175,7 +173,7 @@ Permissions:
 
 Args:
   - wiki_token (string): Wiki 節點 Token（必填）
-  - content (string): 新的 Markdown 內容（必填）
+  - blocks (array): Lark Block JSON 陣列（必填）
   - start_index (number, optional): 範圍更新起始位置
   - end_index (number, optional): 範圍更新結束位置（不包含）
 
@@ -185,8 +183,8 @@ Returns:
   }
 
 Examples:
-  - 全文重寫: wiki_update wiki_token=wikcnXXXXX content="# New Content"
-  - 範圍更新: wiki_update wiki_token=wikcnXXXXX content="Replaced" start_index=0 end_index=3
+  - 全文重寫: wiki_update wiki_token=wikcnXXXXX blocks=[{"block_type":3,"heading1":{"elements":[{"text_run":{"content":"New Content"}}]}}]
+  - 範圍更新: wiki_update wiki_token=wikcnXXXXX blocks=[{"block_type":2,"text":{"elements":[{"text_run":{"content":"Replaced"}}]}}] start_index=0 end_index=3
 
 Permissions:
   - wiki:wiki`,
@@ -200,13 +198,12 @@ Permissions:
     },
     async (params) => {
       try {
-        const { wiki_token, content, start_index, end_index } = params;
+        const { wiki_token, blocks, start_index, end_index } = params;
         const node = await getWikiNode(wiki_token);
         const rootBlockId = await getDocumentRootBlockId(node.objToken);
         const isRangeUpdate = start_index !== undefined && end_index !== undefined;
 
-        const blocks = markdownToBlocks(content);
-        const hasTable = blocks.some((b) => b._cellContents);
+        const hasTable = blocks.some((b: Record<string, unknown>) => b._cellContents);
 
         if (isRangeUpdate) {
           if (start_index < 0 || end_index <= start_index) {
@@ -272,11 +269,11 @@ Permissions:
     "wiki_insert_blocks",
     {
       title: "Insert Blocks to Wiki",
-      description: `在 Wiki 頁面指定位置插入 Markdown 內容。
+      description: `在 Wiki 頁面指定位置插入內容。
 
 Args:
   - wiki_token (string): Wiki 節點 Token（必填）
-  - content (string): 要插入的 Markdown 內容（必填）
+  - blocks (array): Lark Block JSON 陣列（必填）
   - index (number, optional): 插入位置，從 0 開始，預設 0
 
 Returns:
@@ -285,8 +282,8 @@ Returns:
   }
 
 Examples:
-  - 在開頭插入: wiki_insert_blocks wiki_token=wikcnXXXXX content="# Title"
-  - 在指定位置: wiki_insert_blocks wiki_token=wikcnXXXXX content="New" index=5
+  - 在開頭插入: wiki_insert_blocks wiki_token=wikcnXXXXX blocks=[{"block_type":3,"heading1":{"elements":[{"text_run":{"content":"Title"}}]}}]
+  - 在指定位置: wiki_insert_blocks wiki_token=wikcnXXXXX blocks=[{"block_type":2,"text":{"elements":[{"text_run":{"content":"New"}}]}}] index=5
 
 Permissions:
   - wiki:wiki`,
@@ -300,10 +297,9 @@ Permissions:
     },
     async (params) => {
       try {
-        const { wiki_token, content, index } = params;
+        const { wiki_token, blocks, index } = params;
         const node = await getWikiNode(wiki_token);
         const rootBlockId = await getDocumentRootBlockId(node.objToken);
-        const blocks = markdownToBlocks(content);
 
         await insertBlocks(node.objToken, rootBlockId, blocks, index);
 

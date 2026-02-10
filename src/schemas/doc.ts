@@ -28,10 +28,10 @@ export const DocCreateSchema = z.object({
     .min(1)
     .max(200)
     .describe("Document title"),
-  content: z
-    .string()
+  blocks: z
+    .array(z.record(z.unknown()))
     .optional()
-    .describe("Initial content in Markdown format (optional)"),
+    .describe("Initial content as Lark Block JSON array (optional)"),
 }).merge(ResponseFormatSchema);
 
 /**
@@ -52,10 +52,10 @@ export const BlocksToMarkdownSchema = z.object({
  * 更新文件 (支援範圍更新)
  */
 export const DocUpdateSchema = DocumentIdSchema.extend({
-  content: z
-    .string()
+  blocks: z
+    .array(z.record(z.unknown()))
     .min(1)
-    .describe("New Markdown content"),
+    .describe("Lark Block JSON array"),
   start_index: z
     .number()
     .int()
@@ -76,13 +76,41 @@ export const DocUpdateSchema = DocumentIdSchema.extend({
 export const DocDeleteSchema = DocumentIdSchema;
 
 /**
+ * 文件內容操作 (prepend, append)
+ */
+export const DocContentSchema = DocumentIdSchema.extend({
+  blocks: z
+    .array(z.record(z.unknown()))
+    .min(1)
+    .describe("Lark Block JSON array"),
+});
+
+/**
+ * 移動文件
+ */
+export const DocMoveSchema = z.object({
+  file_token: z
+    .string()
+    .min(1)
+    .describe("File token to move (required)"),
+  folder_token: z
+    .string()
+    .min(1)
+    .describe("Target folder token (required)"),
+  type: z
+    .enum(["doc", "docx", "sheet", "bitable", "file", "folder"])
+    .default("docx")
+    .describe("File type: doc/docx/sheet/bitable/file/folder (default: docx)"),
+}).merge(ResponseFormatSchema);
+
+/**
  * 插入區塊
  */
 export const DocInsertBlocksSchema = DocumentIdSchema.extend({
-  content: z
-    .string()
+  blocks: z
+    .array(z.record(z.unknown()))
     .min(1)
-    .describe("Markdown content to insert"),
+    .describe("Lark Block JSON array"),
   index: z
     .number()
     .int()
@@ -127,6 +155,8 @@ export type DocCreateInput = z.infer<typeof DocCreateSchema>;
 export type DocReadInput = z.infer<typeof DocReadSchema>;
 export type DocUpdateInput = z.infer<typeof DocUpdateSchema>;
 export type DocDeleteInput = z.infer<typeof DocDeleteSchema>;
+export type DocContentInput = z.infer<typeof DocContentSchema>;
+export type DocMoveInput = z.infer<typeof DocMoveSchema>;
 export type DocInsertBlocksInput = z.infer<typeof DocInsertBlocksSchema>;
 export type DocDeleteBlocksInput = z.infer<typeof DocDeleteBlocksSchema>;
 export type DriveListInput = z.infer<typeof DriveListSchema>;

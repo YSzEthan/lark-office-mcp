@@ -7,7 +7,7 @@ Lark (飛書) MCP Server - 讓 Claude 直接操作 Lark 文件、Wiki、待辦�
 | 項目 | 值 |
 |------|-----|
 | 名稱 | lark-mcp-server |
-| 版本 | 3.15.0 |
+| 版本 | 3.18.0 |
 | 執行環境 | Bun |
 | 認證方式 | OAuth 2.0 (User Access Token) |
 | Token 儲存 | `~/.lark-token.json` |
@@ -80,8 +80,11 @@ bun install
 | `doc_create` | 建立新文件 |
 | `doc_read` | 讀取文件（回傳原始 blocks）|
 | `blocks_to_markdown` | 將 blocks 轉換為 Markdown（顯示用）|
+| `doc_prepend` | 在文件頂部插入內容 |
+| `doc_append` | 在文件底部追加內容 |
 | `doc_update` | 更新文件內容（範圍更新或清空重寫）|
 | `doc_delete` | 刪除文件 |
+| `doc_move` | 移動檔案到指定資料夾 |
 | `doc_insert_blocks` | 在指定位置插入內容 |
 | `doc_delete_blocks` | 刪除指定範圍的區塊 |
 | `drive_list` | 列出雲端硬碟檔案 |
@@ -197,7 +200,7 @@ bun install
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
 | wiki_token | string | 是 | Wiki 節點 Token |
-| content | string | 是 | 新的 Markdown 內容 |
+| blocks | array | 是 | Lark Block JSON 陣列 |
 | start_index | number | 否 | 起始位置（範圍更新時使用）|
 | end_index | number | 否 | 結束位置（範圍更新時使用）|
 
@@ -206,14 +209,14 @@ bun install
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
 | wiki_token | string | 是 | Wiki 節點 Token |
-| content | string | 是 | Markdown 內容 |
+| blocks | array | 是 | Lark Block JSON 陣列 |
 
 #### `wiki_insert_blocks`
 
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
 | wiki_token | string | 是 | Wiki 節點 Token |
-| content | string | 是 | Markdown 內容 |
+| blocks | array | 是 | Lark Block JSON 陣列 |
 | index | number | 否 | 插入位置（預設 0）|
 
 #### `wiki_delete_blocks`
@@ -253,7 +256,7 @@ bun install
 |------|------|------|------|
 | folder_token | string | 是 | 目標資料夾 Token |
 | title | string | 是 | 文件標題 |
-| content | string | 否 | 初始 Markdown 內容 |
+| blocks | array | 否 | 初始 Lark Block JSON 陣列 |
 
 #### `doc_read`
 
@@ -261,12 +264,26 @@ bun install
 |------|------|------|------|
 | document_id | string | 是 | 文件 ID |
 
+#### `doc_prepend`
+
+| 參數 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| document_id | string | 是 | 文件 ID |
+| blocks | array | 是 | Lark Block JSON 陣列 |
+
+#### `doc_append`
+
+| 參數 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| document_id | string | 是 | 文件 ID |
+| blocks | array | 是 | Lark Block JSON 陣列 |
+
 #### `doc_update`
 
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
 | document_id | string | 是 | 文件 ID |
-| content | string | 是 | 新的 Markdown 內容 |
+| blocks | array | 是 | Lark Block JSON 陣列 |
 | start_index | number | 否 | 起始位置（範圍更新時使用）|
 | end_index | number | 否 | 結束位置（範圍更新時使用）|
 
@@ -276,12 +293,21 @@ bun install
 |------|------|------|------|
 | document_id | string | 是 | 文件 ID |
 
+#### `doc_move`
+
+| 參數 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| file_token | string | 是 | 檔案 Token |
+| folder_token | string | 是 | 目標資料夾 Token |
+| type | string | 否 | 檔案類型：doc/docx/sheet/bitable/file/folder（預設 docx）|
+| response_format | string | 否 | 輸出格式："json" 或 "markdown"（預設 json）|
+
 #### `doc_insert_blocks`
 
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
 | document_id | string | 是 | 文件 ID |
-| content | string | 是 | Markdown 內容 |
+| blocks | array | 是 | Lark Block JSON 陣列 |
 | index | number | 否 | 插入位置（預設 0）|
 
 #### `doc_delete_blocks`
@@ -463,33 +489,87 @@ bun install
 
 ---
 
-## 支援的 Markdown 語法
+## Lark Block JSON 格式
 
-| 語法 | 範例 | 支援 |
-|------|------|------|
-| 標題 | `# H1` ~ `###### H6` | 是 |
-| 無序清單 | `- item` | 是 |
-| 有序清單 | `1. item` | 是 |
-| 引用 | `> quote` | 是 |
-| 待辦 | `- [x] done` | 是 |
-| 粗體 | `**bold**` | 是 |
-| 斜體 | `*italic*` | 是 |
-| 刪除線 | `~~strike~~` | 是 |
-| 行內程式碼 | `` `code` `` | 是 |
-| 分隔線 | `---` | 是 |
-| 程式碼區塊 | ` ```lang ``` ` | 是 |
-| 表格 | Markdown Table | 是 |
+寫入工具（`doc_create`, `doc_prepend`, `doc_append`, `doc_update`, `doc_insert_blocks`, `wiki_prepend`, `wiki_append`, `wiki_update`, `wiki_insert_blocks`）接受 Lark Block JSON 陣列。
+
+### 常用 Block 結構
+
+**文字段落：**
+```json
+{ "block_type": 2, "text": { "elements": [{ "text_run": { "content": "Hello" } }] } }
+```
+
+**標題（H1-H9）：**
+```json
+{ "block_type": 3, "heading1": { "elements": [{ "text_run": { "content": "Title" } }] } }
+```
+
+**無序列表：**
+```json
+{ "block_type": 12, "bullet": { "elements": [{ "text_run": { "content": "Item" } }] } }
+```
+
+**有序列表：**
+```json
+{ "block_type": 13, "ordered": { "elements": [{ "text_run": { "content": "Item" } }] } }
+```
+
+**待辦事項：**
+```json
+{ "block_type": 17, "todo": { "elements": [{ "text_run": { "content": "Task" } }], "style": { "done": false } } }
+```
+
+**程式碼區塊：**
+```json
+{ "block_type": 14, "code": { "elements": [{ "text_run": { "content": "code" } }], "language": 40 } }
+```
+
+**引用：**
+```json
+{ "block_type": 15, "quote": { "elements": [{ "text_run": { "content": "quote" } }] } }
+```
+
+**分隔線：**
+```json
+{ "block_type": 22, "divider": {} }
+```
+
+### Block Type 對照表
+
+| Type | 名稱 | 屬性名 |
+|------|------|--------|
+| 2 | Text | `text` |
+| 3-11 | Heading1-9 | `heading1`-`heading9` |
+| 12 | Bullet | `bullet` |
+| 13 | Ordered | `ordered` |
+| 14 | Code | `code` |
+| 15 | Quote | `quote` |
+| 17 | Todo | `todo` |
+| 22 | Divider | `divider` |
+| 31 | Table | `table` |
+
+### Text Element 結構（支援樣式）
+
+```json
+{
+  "text_run": {
+    "content": "文字內容",
+    "text_element_style": {
+      "bold": true,
+      "italic": false,
+      "strikethrough": false,
+      "inline_code": false
+    }
+  }
+}
+```
+
+### 讀取與顯示
+
+`doc_read` 和 `wiki_read` 回傳原始 blocks。使用 `blocks_to_markdown` 可將 blocks 轉換為 Markdown 格式顯示給用戶。
 
 ### 表格支援
-
-**寫入**：Markdown 表格語法會自動轉換為 Lark 原生表格 (Block Type 31)。
-
-> **注意**：Lark API 限制，表格寫入使用三步驟流程：
-> 1. 建立空表格結構
-> 2. API 回傳 cell IDs
-> 3. 逐一填入儲存格內容
->
-> 較大的表格寫入會較慢。使用 `wiki_update` / `doc_update` 更新含表格的內容時，會自動等待文件狀態同步（100ms）以確保穩定性。
 
 **讀取**：支援兩種表格類型：
 

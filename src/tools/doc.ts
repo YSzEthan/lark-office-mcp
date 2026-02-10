@@ -8,6 +8,8 @@ import {
   DocReadSchema,
   DocUpdateSchema,
   DocDeleteSchema,
+  DocContentSchema,
+  DocMoveSchema,
   DocInsertBlocksSchema,
   DocDeleteBlocksSchema,
   DriveListSchema,
@@ -21,7 +23,7 @@ import {
   insertBlocks,
   larkRequest,
 } from "../services/lark-client.js";
-import { markdownToBlocks, blocksToMarkdown } from "../utils/markdown.js";
+import { blocksToMarkdown } from "../utils/markdown.js";
 import { success, error, simplifySearchResults, truncate } from "../utils/response.js";
 import type { LarkBlock } from "../types.js";
 import { DOC_URL } from "../constants.js";
@@ -40,7 +42,7 @@ export function registerDocTools(server: McpServer): void {
 Args:
   - folder_token (string): 目標資料夾 Token（必填）
   - title (string): 文件標題（必填）
-  - content (string, optional): 初始 Markdown 內容
+  - blocks (array, optional): 初始 Lark Block JSON 陣列
 
 Returns:
   {
@@ -51,7 +53,7 @@ Returns:
 
 Examples:
   - 建立空文件: doc_create folder_token=fldcnXXXXX title="Meeting Notes"
-  - 建立有內容的文件: doc_create folder_token=fldcnXXXXX title="Report" content="# Summary"
+  - 建立有內容的文件: doc_create folder_token=fldcnXXXXX title="Report" blocks=[{"block_type":3,"heading1":{"elements":[{"text_run":{"content":"Summary"}}]}}]
 
 Permissions:
   - drive:drive`,
@@ -65,12 +67,11 @@ Permissions:
     },
     async (params) => {
       try {
-        const { folder_token, title, content, response_format } = params;
+        const { folder_token, title, blocks, response_format } = params;
         const { documentId } = await createDocument(folder_token, title);
 
-        if (content) {
+        if (blocks && blocks.length > 0) {
           const rootBlockId = await getDocumentRootBlockId(documentId);
-          const blocks = markdownToBlocks(content);
           await insertBlocks(documentId, rootBlockId, blocks, 0);
         }
 
@@ -123,6 +124,101 @@ Permissions:
     }
   );
 
+  // doc_prepend
+  server.registerTool(
+    "doc_prepend",
+    {
+      title: "Prepend to Document",
+      description: `在文件頂部插入內容。
+
+Args:
+  - document_id (string): 文件 ID（必填）
+  - blocks (array): Lark Block JSON 陣列（必填）
+
+Returns:
+  {
+    "doc_url": string  // 文件 URL
+  }
+
+Examples:
+  - 插入標題: doc_prepend document_id=doccnXXXXX blocks=[{"block_type":3,"heading1":{"elements":[{"text_run":{"content":"Title"}}]}}]
+  - 插入段落: doc_prepend document_id=doccnXXXXX blocks=[{"block_type":2,"text":{"elements":[{"text_run":{"content":"Hello"}}]}}]
+
+Permissions:
+  - drive:drive`,
+      inputSchema: DocContentSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { document_id, blocks } = params;
+        const rootBlockId = await getDocumentRootBlockId(document_id);
+
+        await insertBlocks(document_id, rootBlockId, blocks, 0);
+
+        return success(`Inserted ${blocks.length} blocks at top of document`, {
+          doc_url: DOC_URL(document_id),
+        });
+      } catch (err) {
+        return error("Document prepend failed", err);
+      }
+    }
+  );
+
+  // doc_append
+  server.registerTool(
+    "doc_append",
+    {
+      title: "Append to Document",
+      description: `在文件底部追加內容。
+
+Args:
+  - document_id (string): 文件 ID（必填）
+  - blocks (array): Lark Block JSON 陣列（必填）
+
+Returns:
+  {
+    "document_id": string,  // 文件 ID
+    "url": string           // 文件 URL
+  }
+
+Examples:
+  - 追加頁尾: doc_append document_id=doccnXXXXX blocks=[{"block_type":4,"heading2":{"elements":[{"text_run":{"content":"Footer"}}]}}]
+
+Permissions:
+  - drive:drive`,
+      inputSchema: DocContentSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { document_id, blocks } = params;
+        const rootBlockId = await getDocumentRootBlockId(document_id);
+        const existingBlocks = await getDocumentBlocks(document_id);
+        const insertIndex = Math.max(0, existingBlocks.length - 1);
+
+        await insertBlocks(document_id, rootBlockId, blocks, insertIndex);
+
+        return success(`Appended ${blocks.length} blocks to document`, {
+          document_id,
+          url: DOC_URL(document_id),
+        });
+      } catch (err) {
+        return error("Document append failed", err);
+      }
+    }
+  );
+
   // doc_update
   server.registerTool(
     "doc_update",
@@ -132,7 +228,7 @@ Permissions:
 
 Args:
   - document_id (string): 文件 ID（必填）
-  - content (string): 新的 Markdown 內容（必填）
+  - blocks (array): Lark Block JSON 陣列（必填）
   - start_index (number, optional): 範圍更新起始位置（需配合 end_index）
   - end_index (number, optional): 範圍更新結束位置（不包含）
 
@@ -143,8 +239,8 @@ Returns:
   }
 
 Examples:
-  - 全文重寫: doc_update document_id=doccnXXXXX content="# New Content"
-  - 範圍更新: doc_update document_id=doccnXXXXX content="New" start_index=0 end_index=3
+  - 全文重寫: doc_update document_id=doccnXXXXX blocks=[{"block_type":3,"heading1":{"elements":[{"text_run":{"content":"New Content"}}]}}]
+  - 範圍更新: doc_update document_id=doccnXXXXX blocks=[{"block_type":2,"text":{"elements":[{"text_run":{"content":"New"}}]}}] start_index=0 end_index=3
 
 Permissions:
   - drive:drive`,
@@ -158,12 +254,11 @@ Permissions:
     },
     async (params) => {
       try {
-        const { document_id, content, start_index, end_index } = params;
+        const { document_id, blocks, start_index, end_index } = params;
         const rootBlockId = await getDocumentRootBlockId(document_id);
         const isRangeUpdate = start_index !== undefined && end_index !== undefined;
 
-        const blocks = markdownToBlocks(content);
-        const hasTable = blocks.some((b) => b._cellContents);
+        const hasTable = blocks.some((b: Record<string, unknown>) => b._cellContents);
 
         if (isRangeUpdate) {
           if (start_index < 0 || end_index <= start_index) {
@@ -269,6 +364,64 @@ Permissions:
     }
   );
 
+  // doc_move
+  server.registerTool(
+    "doc_move",
+    {
+      title: "Move File",
+      description: `移動檔案到指定資料夾。支援文件、試算表、多維表格等類型。
+
+Args:
+  - file_token (string): 檔案 Token（必填）
+  - folder_token (string): 目標資料夾 Token（必填）
+  - type (string, optional): 檔案類型 doc/docx/sheet/bitable/file/folder，預設 docx
+  - response_format (string, optional): 輸出格式 "json" 或 "markdown"
+
+Returns:
+  {
+    "file_token": string,    // 檔案 Token
+    "folder_token": string   // 目標資料夾 Token
+  }
+
+Examples:
+  - 移動文件: doc_move file_token=doccnXXXXX folder_token=fldcnYYYYY
+  - 移動試算表: doc_move file_token=shtcnXXXXX folder_token=fldcnYYYYY type="sheet"
+
+Permissions:
+  - drive:drive`,
+      inputSchema: DocMoveSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { file_token, folder_token, type, response_format } = params;
+
+        const data = await larkRequest<{
+          task_id?: string;
+        }>(`/drive/v1/files/${file_token}/move`, {
+          method: "POST",
+          body: {
+            type: type || "docx",
+            folder_token,
+          },
+        });
+
+        return success("File moved", {
+          file_token,
+          folder_token,
+          task_id: data.task_id,
+        }, response_format);
+      } catch (err) {
+        return error("File move failed", err);
+      }
+    }
+  );
+
   // doc_insert_blocks
   server.registerTool(
     "doc_insert_blocks",
@@ -278,7 +431,7 @@ Permissions:
 
 Args:
   - document_id (string): 文件 ID（必填）
-  - content (string): Markdown 內容（必填）
+  - blocks (array): Lark Block JSON 陣列（必填）
   - index (number, optional): 插入位置，從 0 開始，預設 0
 
 Returns:
@@ -288,8 +441,8 @@ Returns:
   }
 
 Examples:
-  - 在開頭插入: doc_insert_blocks document_id=doccnXXXXX content="# Title"
-  - 在指定位置插入: doc_insert_blocks document_id=doccnXXXXX content="New" index=5
+  - 在開頭插入: doc_insert_blocks document_id=doccnXXXXX blocks=[{"block_type":3,"heading1":{"elements":[{"text_run":{"content":"Title"}}]}}]
+  - 在指定位置插入: doc_insert_blocks document_id=doccnXXXXX blocks=[{"block_type":2,"text":{"elements":[{"text_run":{"content":"New"}}]}}] index=5
 
 Permissions:
   - drive:drive`,
@@ -303,9 +456,8 @@ Permissions:
     },
     async (params) => {
       try {
-        const { document_id, content, index } = params;
+        const { document_id, blocks, index } = params;
         const rootBlockId = await getDocumentRootBlockId(document_id);
-        const blocks = markdownToBlocks(content);
 
         await insertBlocks(document_id, rootBlockId, blocks, index);
 
