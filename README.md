@@ -7,7 +7,7 @@ Lark (飛書) MCP Server - 讓 Claude 直接操作 Lark 文件、Wiki、待辦�
 | 項目 | 值 |
 |------|-----|
 | 名稱 | lark-mcp-server |
-| 版本 | 3.20.0 |
+| 版本 | 3.21.0 |
 | 執行環境 | Bun |
 | 認證方式 | OAuth 2.0 (User Access Token) |
 | Token 儲存 | `~/.lark-token.json` |
@@ -88,6 +88,7 @@ bun install
 | `doc_insert_blocks` | 在指定位置插入內容 |
 | `doc_delete_blocks` | 刪除指定範圍的區塊 |
 | `doc_move_blocks` | 移動區塊到指定位置 |
+| `doc_search_blocks` | 搜尋包含關鍵字的區塊 |
 | `drive_list` | 列出雲端硬碟檔案 |
 | `drive_recent` | 列出最近存取的檔案 |
 | `lark_search` | 全域搜尋（支援我的文件資料庫、共享空間）|
@@ -327,6 +328,14 @@ bun install
 | start_index | number | 是 | 要移動的起始位置（從 0 開始）|
 | end_index | number | 是 | 要移動的結束位置（不包含）|
 | target_index | number | 是 | 目標位置（從 0 開始）|
+
+#### `doc_search_blocks`
+
+| 參數 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| document_id | string | 是 | 文件 ID |
+| keyword | string | 是 | 搜尋關鍵字 |
+| case_sensitive | boolean | 否 | 區分大小寫（預設 false）|
 
 #### `drive_list`
 

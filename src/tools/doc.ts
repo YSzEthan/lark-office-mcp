@@ -13,6 +13,7 @@ import {
   DocInsertBlocksSchema,
   DocDeleteBlocksSchema,
   DocMoveBlocksSchema,
+  DocSearchBlocksSchema,
   DriveListSchema,
   DriveRecentSchema,
   BlocksToMarkdownSchema,
@@ -624,6 +625,101 @@ Permissions:
         });
       } catch (err) {
         return error("Document move blocks failed", err);
+      }
+    }
+  );
+
+  // doc_search_blocks
+  server.registerTool(
+    "doc_search_blocks",
+    {
+      title: "Search Document Blocks",
+      description: `在文件內搜尋包含關鍵字的區塊。
+
+Args:
+  - document_id (string): 文件 ID（必填）
+  - keyword (string): 搜尋關鍵字（必填）
+  - case_sensitive (boolean, optional): 區分大小寫，預設 false
+
+Returns:
+  [
+    {
+      "index": number,       // 區塊位置（0-based）
+      "block_type": number,  // 區塊類型
+      "text": string         // 區塊文字內容
+    }
+  ]
+
+Examples:
+  - 搜尋關鍵字: doc_search_blocks document_id=doccnXXXXX keyword="TODO"
+  - 區分大小寫: doc_search_blocks document_id=doccnXXXXX keyword="API" case_sensitive=true
+
+Permissions:
+  - drive:drive`,
+      inputSchema: DocSearchBlocksSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { document_id, keyword, case_sensitive } = params;
+
+        const rootBlockId = await getDocumentRootBlockId(document_id);
+        const allBlocks = await getDocumentBlocks(document_id);
+
+        // 只取直接子節點
+        const childBlocks = allBlocks.filter(
+          (b) => b.parent_id === rootBlockId && b.block_id !== rootBlockId
+        );
+
+        // 提取文字內容的輔助函數
+        const extractText = (block: Record<string, unknown>): string => {
+          const content = block.text || block.heading1 || block.heading2 || block.heading3 ||
+            block.heading4 || block.heading5 || block.heading6 || block.heading7 ||
+            block.heading8 || block.heading9 || block.bullet || block.ordered ||
+            block.quote || block.todo || block.code || block.callout;
+
+          if (!content || typeof content !== "object") return "";
+
+          const elements = (content as Record<string, unknown>).elements;
+          if (!Array.isArray(elements)) return "";
+
+          return elements
+            .map((el: Record<string, unknown>) => {
+              const textRun = el.text_run as Record<string, unknown> | undefined;
+              return textRun?.content || "";
+            })
+            .join("");
+        };
+
+        // 搜尋
+        const searchKeyword = case_sensitive ? keyword : keyword.toLowerCase();
+        const results: Array<{ index: number; block_type: number; text: string }> = [];
+
+        childBlocks.forEach((block, index) => {
+          const text = extractText(block);
+          const searchText = case_sensitive ? text : text.toLowerCase();
+
+          if (searchText.includes(searchKeyword)) {
+            results.push({
+              index,
+              block_type: block.block_type as number,
+              text: text.length > 100 ? text.slice(0, 100) + "..." : text,
+            });
+          }
+        });
+
+        if (results.length === 0) {
+          return success(`No blocks found containing "${keyword}"`);
+        }
+
+        return success(`Found ${results.length} blocks containing "${keyword}"`, results);
+      } catch (err) {
+        return error("Document search blocks failed", err);
       }
     }
   );

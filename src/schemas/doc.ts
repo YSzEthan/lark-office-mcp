@@ -157,6 +157,20 @@ export const DocMoveBlocksSchema = DocumentIdSchema.extend({
 });
 
 /**
+ * 搜尋區塊
+ */
+export const DocSearchBlocksSchema = DocumentIdSchema.extend({
+  keyword: z
+    .string()
+    .min(1)
+    .describe("Keyword to search (required)"),
+  case_sensitive: z
+    .boolean()
+    .default(false)
+    .describe("Case sensitive search (default: false)"),
+});
+
+/**
  * 列出雲端硬碟檔案
  */
 export const DriveListSchema = z.object({
@@ -181,5 +195,6 @@ export type DocMoveInput = z.infer<typeof DocMoveSchema>;
 export type DocInsertBlocksInput = z.infer<typeof DocInsertBlocksSchema>;
 export type DocDeleteBlocksInput = z.infer<typeof DocDeleteBlocksSchema>;
 export type DocMoveBlocksInput = z.infer<typeof DocMoveBlocksSchema>;
+export type DocSearchBlocksInput = z.infer<typeof DocSearchBlocksSchema>;
 export type DriveListInput = z.infer<typeof DriveListSchema>;
 export type DriveRecentInput = z.infer<typeof DriveRecentSchema>;
