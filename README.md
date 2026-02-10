@@ -7,7 +7,7 @@ Lark (飛書) MCP Server - 讓 Claude 直接操作 Lark 文件、Wiki、待辦�
 | 項目 | 值 |
 |------|-----|
 | 名稱 | lark-mcp-server |
-| 版本 | 3.14.0 |
+| 版本 | 3.15.0 |
 | 執行環境 | Bun |
 | 認證方式 | OAuth 2.0 (User Access Token) |
 | Token 儲存 | `~/.lark-token.json` |
@@ -70,6 +70,7 @@ bun install
 | `wiki_append` | 在 Wiki 底部追加內容 |
 | `wiki_insert_blocks` | 在指定位置插入內容 |
 | `wiki_delete_blocks` | 刪除指定範圍的區塊 |
+| `wiki_create_node` | 建立新節點（頁面）|
 | `wiki_move_node` | 移動節點（支援跨空間）|
 
 ### 文件工具
@@ -222,6 +223,16 @@ bun install
 | wiki_token | string | 是 | Wiki 節點 Token |
 | start_index | number | 是 | 起始位置（從 0 開始）|
 | end_index | number | 是 | 結束位置（不包含）|
+
+#### `wiki_create_node`
+
+| 參數 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| space_id | string | 是 | Wiki 空間 ID |
+| title | string | 是 | 節點標題（最多 200 字元）|
+| parent_node_token | string | 否 | 父節點 Token（不填則建立在根目錄）|
+| obj_type | string | 否 | 節點類型：doc/docx/sheet/bitable/mindnote/file（預設 docx）|
+| response_format | string | 否 | 輸出格式："json" 或 "markdown"（預設 json）|
 
 #### `wiki_move_node`
 

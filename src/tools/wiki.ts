@@ -11,6 +11,7 @@ import {
   WikiDeleteBlocksSchema,
   WikiListNodesSchema,
   WikiSpacesSchema,
+  WikiCreateNodeSchema,
   WikiMoveNodeSchema,
   SearchAllSchema,
 } from "../schemas/index.js";
@@ -434,6 +435,80 @@ Permissions:
         return success(`Found ${simplified.length} nodes`, simplified, response_format);
       } catch (err) {
         return error("Wiki list nodes failed", err);
+      }
+    }
+  );
+
+  // wiki_create_node
+  server.registerTool(
+    "wiki_create_node",
+    {
+      title: "Create Wiki Node",
+      description: `在 Wiki 空間中建立新節點（頁面）。
+
+Args:
+  - space_id (string): Wiki 空間 ID（必填）
+  - title (string): 節點標題（必填，最多 200 字元）
+  - parent_node_token (string, optional): 父節點 Token，不填則建立在根目錄
+  - obj_type (string, optional): 節點類型 doc/docx/sheet/bitable/mindnote/file，預設 docx
+  - response_format (string, optional): 輸出格式 "json" 或 "markdown"
+
+Returns:
+  {
+    "node_token": string,  // 新節點 Token
+    "obj_token": string,   // 文件 Token
+    "title": string,       // 節點標題
+    "wiki_url": string     // Wiki 頁面 URL
+  }
+
+Examples:
+  - 建立根目錄節點: wiki_create_node space_id=7XXXXXX title="New Page"
+  - 建立子節點: wiki_create_node space_id=7XXXXXX title="Sub Page" parent_node_token=wikcnXXX
+  - 建立試算表: wiki_create_node space_id=7XXXXXX title="Data" obj_type="sheet"
+
+Permissions:
+  - wiki:wiki`,
+      inputSchema: WikiCreateNodeSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { space_id, title, parent_node_token, obj_type, response_format } = params;
+
+        const body: Record<string, unknown> = {
+          obj_type: obj_type || "docx",
+          title,
+        };
+
+        if (parent_node_token) {
+          body.parent_node_token = parent_node_token;
+        }
+
+        const data = await larkRequest<{
+          node?: {
+            node_token?: string;
+            obj_token?: string;
+            title?: string;
+          };
+        }>(`/wiki/v2/spaces/${space_id}/nodes`, {
+          method: "POST",
+          body,
+        });
+
+        const node = data.node || {};
+        return success("Wiki node created", {
+          node_token: node.node_token,
+          obj_token: node.obj_token,
+          title: node.title || title,
+          wiki_url: WIKI_URL(node.node_token || ""),
+        }, response_format);
+      } catch (err) {
+        return error("Wiki create node failed", err);
       }
     }
   );

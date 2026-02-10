@@ -96,6 +96,29 @@ export const WikiListNodesSchema = z.object({
 export const WikiSpacesSchema = ListPaginationSchema.merge(ResponseFormatSchema);
 
 /**
+ * Wiki 建立節點
+ */
+export const WikiCreateNodeSchema = z.object({
+  space_id: z
+    .string()
+    .min(1)
+    .describe("Wiki space ID (required)"),
+  title: z
+    .string()
+    .min(1)
+    .max(200)
+    .describe("Node title (required)"),
+  parent_node_token: z
+    .string()
+    .optional()
+    .describe("Parent node token (optional, omit for root)"),
+  obj_type: z
+    .enum(["doc", "docx", "sheet", "bitable", "mindnote", "file"])
+    .default("docx")
+    .describe("Node type: doc/docx/sheet/bitable/mindnote/file (default: docx)"),
+}).merge(ResponseFormatSchema);
+
+/**
  * Wiki 移動節點
  */
 export const WikiMoveNodeSchema = z.object({
@@ -147,5 +170,6 @@ export type WikiInsertBlocksInput = z.infer<typeof WikiInsertBlocksSchema>;
 export type WikiDeleteBlocksInput = z.infer<typeof WikiDeleteBlocksSchema>;
 export type WikiListNodesInput = z.infer<typeof WikiListNodesSchema>;
 export type WikiSpacesInput = z.infer<typeof WikiSpacesSchema>;
+export type WikiCreateNodeInput = z.infer<typeof WikiCreateNodeSchema>;
 export type WikiMoveNodeInput = z.infer<typeof WikiMoveNodeSchema>;
 export type SearchAllInput = z.infer<typeof SearchAllSchema>;
