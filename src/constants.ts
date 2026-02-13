@@ -6,6 +6,10 @@
 export const BASE_URL = "https://open.larksuite.com/open-apis";
 export const REDIRECT_URI = "http://localhost:3000/callback";
 
+// OAuth Callback Server
+export const CALLBACK_PORT = 3000;
+export const CALLBACK_TIMEOUT_MS = 120_000;
+
 // 回應限制
 export const CHARACTER_LIMIT = 25000;
 export const MAX_PAGE_SIZE = 100;

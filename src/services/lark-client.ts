@@ -6,9 +6,11 @@
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
+import { exec } from "child_process";
 import { BASE_URL, REDIRECT_URI, TOKEN_FILE_NAME, setLarkBaseUrl, BATCH_SIZE } from "../constants.js";
 import type { TokenData, LarkBlock } from "../types.js";
 import { LarkError } from "../utils/errors.js";
+import { waitForOAuthCallback } from "../utils/oauth-callback.js";
 import { globalRateLimiter, documentRateLimiter } from "../utils/rate-limiter.js";
 import { withRetryAndRefresh } from "../utils/retry.js";
 
@@ -282,6 +284,29 @@ async function refreshAccessToken(refreshToken: string): Promise<TokenData> {
 }
 
 /**
+ * 開啟瀏覽器（跨平台）
+ */
+function openBrowser(url: string): void {
+  const platform = process.platform;
+  const cmd = platform === "darwin" ? "open" : platform === "win32" ? "start" : "xdg-open";
+  exec(`${cmd} "${url}"`);
+}
+
+/**
+ * 自動重新授權：啟動 callback server → 開啟瀏覽器 → 等 callback → 交換 token
+ */
+export async function autoReAuth(): Promise<TokenData> {
+  const authUrl = getAuthorizationUrl();
+
+  // 先啟動 callback server，再開瀏覽器
+  const codePromise = waitForOAuthCallback();
+  openBrowser(authUrl);
+
+  const code = await codePromise;
+  return exchangeCodeForToken(code);
+}
+
+/**
  * 取得 User Access Token (自動處理快取和更新)
  */
 export async function getAccessToken(): Promise<string> {
@@ -304,20 +329,13 @@ export async function getAccessToken(): Promise<string> {
       const newToken = await refreshAccessToken(cachedToken.refreshToken);
       return newToken.accessToken;
     } catch (err) {
-      console.error("Refresh Token failed:", err);
+      console.error("Refresh Token failed, starting auto re-auth...");
     }
   }
 
-  // 沒有有效 Token，需要授權
-  const authUrl = getAuthorizationUrl();
-  throw new Error(
-    `Authorization required!\n\n` +
-    `1. Open this URL:\n${authUrl}\n\n` +
-    `2. After authorization, copy the 'code' parameter from the redirect URL\n` +
-    `   Example: https://example.com/callback?code=XXXXX&state=...\n\n` +
-    `3. Use lark_auth tool to submit the code:\n` +
-    `   lark_auth code=XXXXX`
-  );
+  // 沒有有效 Token，自動啟動授權流程
+  const token = await autoReAuth();
+  return token.accessToken;
 }
 
 /**

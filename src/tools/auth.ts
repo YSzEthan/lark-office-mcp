@@ -3,20 +3,10 @@
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { exec } from "child_process";
 import { LarkAuthSchema, LarkAuthUrlSchema, UserMeSchema, UserGetSchema, UserListSchema } from "../schemas/index.js";
-import { exchangeCodeForToken, getAuthorizationUrl, larkRequest } from "../services/lark-client.js";
+import { exchangeCodeForToken, autoReAuth, larkRequest } from "../services/lark-client.js";
 import { success, error } from "../utils/response.js";
 import { getLarkBaseUrl } from "../constants.js";
-
-/**
- * 開啟瀏覽器（跨平台）
- */
-function openBrowser(url: string): void {
-  const platform = process.platform;
-  const cmd = platform === "darwin" ? "open" : platform === "win32" ? "start" : "xdg-open";
-  exec(`${cmd} "${url}"`);
-}
 
 /**
  * 註冊認證工具
@@ -64,39 +54,45 @@ Examples:
     }
   );
 
-  // lark_auth_url: Get authorization URL
+  // lark_auth_url: Auto OAuth authorization
   server.registerTool(
     "lark_auth_url",
     {
-      title: "Get Lark Authorization URL",
-      description: `取得 Lark OAuth 授權連結並自動開啟瀏覽器。
+      title: "Lark Auto Authorization",
+      description: `自動完成 Lark OAuth 授權。
+
+自動開啟瀏覽器並啟動 callback server，使用者只需在瀏覽器點「同意」即可完成授權。
+超時 120 秒未完成則自動取消。
 
 Args:
   無參數
 
 Returns:
-  授權 URL 字串，瀏覽器會自動開啟
+  {
+    "expires_at": string,  // Token 過期時間（ISO 8601）
+    "base_url": string     // Lark base URL
+  }
 
 Examples:
-  - 開啟授權頁面: lark_auth_url`,
+  - 執行授權: lark_auth_url`,
       inputSchema: LarkAuthUrlSchema,
       annotations: {
-        readOnlyHint: true,
+        readOnlyHint: false,
         destructiveHint: false,
-        idempotentHint: true,
+        idempotentHint: false,
         openWorldHint: true,
       },
     },
     async () => {
       try {
-        const url = getAuthorizationUrl();
-        openBrowser(url);
-        return success(
-          "已開啟瀏覽器，請完成授權",
-          `授權完成後，複製網址中的 code 參數，使用 lark_auth 提交`
-        );
+        const token = await autoReAuth();
+        const baseUrl = getLarkBaseUrl();
+        return success("授權成功！Token 已儲存。", {
+          expires_at: new Date(token.expiresAt).toISOString(),
+          base_url: baseUrl || "(not detected, URLs will use fallback format)",
+        });
       } catch (err) {
-        return error("Failed to generate authorization URL", err);
+        return error("Auto authorization failed. Use lark_auth as fallback.", err);
       }
     }
   );
