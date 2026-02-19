@@ -4,7 +4,6 @@
 
 // API 基礎設定
 export const BASE_URL = "https://open.larksuite.com/open-apis";
-export const REDIRECT_URI = "http://localhost:3000/callback";
 
 // OAuth Callback Server
 export const CALLBACK_PORT = 3000;

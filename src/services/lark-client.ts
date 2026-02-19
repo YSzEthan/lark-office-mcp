@@ -7,10 +7,10 @@ import { readFileSync, writeFileSync, existsSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
 import { exec } from "child_process";
-import { BASE_URL, REDIRECT_URI, TOKEN_FILE_NAME, setLarkBaseUrl, BATCH_SIZE } from "../constants.js";
+import { BASE_URL, CALLBACK_PORT, TOKEN_FILE_NAME, setLarkBaseUrl, BATCH_SIZE } from "../constants.js";
 import type { TokenData, LarkBlock } from "../types.js";
 import { LarkError } from "../utils/errors.js";
-import { waitForOAuthCallback } from "../utils/oauth-callback.js";
+import { startCallbackServer } from "../utils/oauth-callback.js";
 import { globalRateLimiter, documentRateLimiter } from "../utils/rate-limiter.js";
 import { withRetryAndRefresh } from "../utils/retry.js";
 
@@ -26,8 +26,9 @@ let cachedToken: TokenData | null = null;
 
 /**
  * 取得授權連結
+ * @param port callback server 實際使用的 port
  */
-export function getAuthorizationUrl(): string {
+export function getAuthorizationUrl(port: number = CALLBACK_PORT): string {
   const scopes = [
     "wiki:wiki",
     "drive:drive",
@@ -43,8 +44,9 @@ export function getAuthorizationUrl(): string {
     "contact:user.email:readonly",
   ];
 
+  const redirectUri = `http://localhost:${port}/callback`;
   const scopeStr = scopes.join(" ");
-  const redirectParam = encodeURIComponent(REDIRECT_URI);
+  const redirectParam = encodeURIComponent(redirectUri);
   const scopeParam = encodeURIComponent(scopeStr);
 
   return `https://open.larksuite.com/open-apis/authen/v1/authorize?app_id=${LARK_APP_ID}&redirect_uri=${redirectParam}&state=lark_mcp_auth&scope=${scopeParam}`;
@@ -294,12 +296,14 @@ function openBrowser(url: string): void {
 
 /**
  * 自動重新授權：啟動 callback server → 開啟瀏覽器 → 等 callback → 交換 token
+ * callback server 會自動尋找可用 port（若預設 port 被佔用）
  */
 export async function autoReAuth(): Promise<TokenData> {
-  const authUrl = getAuthorizationUrl();
+  // 先啟動 callback server（自動處理 port 衝突）
+  const { port, codePromise } = startCallbackServer();
 
-  // 先啟動 callback server，再開瀏覽器
-  const codePromise = waitForOAuthCallback();
+  // 用實際 port 產生 auth URL，再開瀏覽器
+  const authUrl = getAuthorizationUrl(port);
   openBrowser(authUrl);
 
   const code = await codePromise;
