@@ -6,7 +6,7 @@
 export const BASE_URL = "https://open.larksuite.com/open-apis";
 
 // OAuth Callback Server
-export const CALLBACK_PORT = 3000;
+export const CALLBACK_PORT = Number(process.env.LARK_CALLBACK_PORT) || 9876;
 export const CALLBACK_TIMEOUT_MS = 120_000;
 
 // 回應限制

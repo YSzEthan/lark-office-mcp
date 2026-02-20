@@ -62,7 +62,7 @@ Examples:
       description: `自動完成 Lark OAuth 授權。
 
 自動開啟瀏覽器並啟動 callback server，使用者只需在瀏覽器點「同意」即可完成授權。
-若預設 port 3000 被佔用，會自動嘗試下一個可用 port。
+Callback port 由環境變數 LARK_CALLBACK_PORT 設定，若該 port 被佔用會自動嘗試下一個可用 port。
 超時 120 秒未完成則自動取消。
 
 Args:
