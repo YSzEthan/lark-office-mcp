@@ -3,9 +3,9 @@
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { LarkAuthSchema, LarkAuthUrlSchema, UserMeSchema, UserGetSchema, UserListSchema } from "../schemas/index.js";
+import { LarkAuthSchema, LarkAuthUrlSchema, UserMeSchema, UserGetSchema, UserListSchema, LarkAuthOutputSchema, LarkAuthUrlOutputSchema, UserMeOutputSchema, UserGetOutputSchema, UserListOutputSchema } from "../schemas/index.js";
 import { exchangeCodeForToken, autoReAuth, larkRequest } from "../services/lark-client.js";
-import { success, error } from "../utils/response.js";
+import { success, error, paginatedResponse } from "../utils/response.js";
 import { getLarkBaseUrl } from "../constants.js";
 
 /**
@@ -29,8 +29,17 @@ Returns:
   }
 
 Examples:
-  - 提交授權碼: lark_auth code=abc123xyz`,
+  - 提交授權碼: lark_auth code=abc123xyz
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - Auto authorization is available (use lark_auth_url instead)`,
       inputSchema: LarkAuthSchema,
+      outputSchema: LarkAuthOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -75,8 +84,18 @@ Returns:
   }
 
 Examples:
-  - 執行授權: lark_auth_url`,
+  - 執行授權: lark_auth_url
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - Browser is not available or callback port is blocked
+  - Manual code submission is preferred (use lark_auth instead)`,
       inputSchema: LarkAuthUrlSchema,
+      outputSchema: LarkAuthUrlOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -119,8 +138,17 @@ Returns:
   }
 
 Examples:
-  - 取得當前用戶: user_me`,
+  - 取得當前用戶: user_me
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need another user's info (use user_get instead)`,
       inputSchema: UserMeSchema,
+      outputSchema: UserMeOutputSchema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -179,8 +207,18 @@ Examples:
   - 查詢用戶: user_get user_id=ou_xxxxx
 
 Permissions:
-  - contact:user.base:readonly`,
+  - contact:user.base:readonly
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need current user's info (use user_me instead)
+  - You need to list all users (use user_list instead)`,
       inputSchema: UserGetSchema,
+      outputSchema: UserGetOutputSchema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -248,8 +286,17 @@ Examples:
   - 列出指定部門: user_list department_id=od_xxxxx
 
 Permissions:
-  - contact:contact.base:readonly`,
+  - contact:contact.base:readonly
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need a specific user's info (use user_get instead)`,
       inputSchema: UserListSchema,
+      outputSchema: UserListOutputSchema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -259,7 +306,7 @@ Permissions:
     },
     async (params) => {
       try {
-        const { department_id, limit, response_format } = params;
+        const { department_id, limit, offset, response_format } = params;
 
         const data = await larkRequest<{
           items?: Array<{
@@ -284,12 +331,7 @@ Permissions:
           email: u.email,
         }));
 
-        let message = `Found ${users.length} users`;
-        if (data.has_more) {
-          message += " (more available)";
-        }
-
-        return success(message, users, response_format);
+        return paginatedResponse(users, !!data.has_more, offset || 0, `Found ${users.length} users`, response_format);
       } catch (err) {
         return error("Failed to list users", err);
       }

@@ -68,6 +68,16 @@ export const ListOptionsSchema = ListPaginationSchema.merge(ResponseFormatSchema
  */
 export const SearchOptionsSchema = SearchPaginationSchema.merge(ResponseFormatSchema);
 
+/**
+ * 分頁 Output 共用欄位
+ */
+export const PaginationOutputFields = {
+  count: z.number().describe("Number of items returned"),
+  offset: z.number().describe("Current pagination offset"),
+  has_more: z.boolean().describe("Whether more items are available"),
+  next_offset: z.number().optional().describe("Offset for next page (only present when has_more is true)"),
+};
+
 export type ListPaginationInput = z.infer<typeof ListPaginationSchema>;
 export type SearchPaginationInput = z.infer<typeof SearchPaginationSchema>;
 export type PaginationInput = z.infer<typeof PaginationSchema>;

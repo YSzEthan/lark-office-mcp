@@ -348,7 +348,7 @@ export async function getAccessToken(): Promise<string> {
 export interface LarkRequestOptions {
   method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
   body?: unknown;
-  params?: Record<string, string | number>;
+  params?: Record<string, string | number | boolean>;
   /** 跳過 Rate Limiting（當已由 documentRateLimiter 處理時使用） */
   skipRateLimit?: boolean;
   /** 跳過重試機制 */

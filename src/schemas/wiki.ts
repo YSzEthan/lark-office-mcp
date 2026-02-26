@@ -3,7 +3,7 @@
  */
 
 import { z } from "zod";
-import { ListPaginationSchema, SearchPaginationSchema, ResponseFormatSchema } from "./common.js";
+import { ListPaginationSchema, SearchPaginationSchema, ResponseFormatSchema, PaginationOutputFields } from "./common.js";
 
 /**
  * Wiki Token 參數
@@ -18,7 +18,7 @@ export const WikiTokenSchema = z.object({
 /**
  * Wiki 讀取
  */
-export const WikiReadSchema = WikiTokenSchema;
+export const WikiReadSchema = WikiTokenSchema.strict();
 
 /**
  * Wiki 內容操作 (prepend, append, update)
@@ -28,7 +28,7 @@ export const WikiContentSchema = WikiTokenSchema.extend({
     .array(z.record(z.unknown()))
     .min(1)
     .describe("Lark Block JSON array"),
-});
+}).strict();
 
 /**
  * Wiki 更新 (支援範圍更新)
@@ -46,7 +46,7 @@ export const WikiUpdateSchema = WikiContentSchema.extend({
     .min(1)
     .optional()
     .describe("End index for range update (exclusive, optional)"),
-});
+}).strict();
 
 /**
  * Wiki 插入區塊
@@ -58,7 +58,7 @@ export const WikiInsertBlocksSchema = WikiContentSchema.extend({
     .min(0)
     .default(0)
     .describe("Insert position index (0-based, default: 0)"),
-});
+}).strict();
 
 /**
  * Wiki 刪除區塊
@@ -74,7 +74,7 @@ export const WikiDeleteBlocksSchema = WikiTokenSchema.extend({
     .int()
     .min(1)
     .describe("End index (exclusive, required)"),
-});
+}).strict();
 
 /**
  * Wiki 列出節點
@@ -88,12 +88,12 @@ export const WikiListNodesSchema = z.object({
     .string()
     .optional()
     .describe("Parent node token (optional, omit for root nodes)"),
-}).merge(ListPaginationSchema).merge(ResponseFormatSchema);
+}).merge(ListPaginationSchema).merge(ResponseFormatSchema).strict();
 
 /**
  * Wiki 空間列表
  */
-export const WikiSpacesSchema = ListPaginationSchema.merge(ResponseFormatSchema);
+export const WikiSpacesSchema = ListPaginationSchema.merge(ResponseFormatSchema).strict();
 
 /**
  * Wiki 建立節點
@@ -116,7 +116,7 @@ export const WikiCreateNodeSchema = z.object({
     .enum(["doc", "docx", "sheet", "bitable", "mindnote", "file"])
     .default("docx")
     .describe("Node type: doc/docx/sheet/bitable/mindnote/file (default: docx)"),
-}).merge(ResponseFormatSchema);
+}).merge(ResponseFormatSchema).strict();
 
 /**
  * Wiki 移動節點
@@ -138,7 +138,7 @@ export const WikiMoveNodeSchema = z.object({
     .string()
     .optional()
     .describe("Target space ID for cross-space move (optional)"),
-});
+}).strict();
 
 /**
  * 全域搜尋（整合 doc_search, wiki_search）
@@ -160,7 +160,55 @@ export const SearchAllSchema = z.object({
     .string()
     .optional()
     .describe("Limit to specific wiki space (optional)"),
-}).merge(SearchPaginationSchema).merge(ResponseFormatSchema);
+}).merge(SearchPaginationSchema).merge(ResponseFormatSchema).strict();
+
+// === Output Schemas ===
+
+export const WikiUrlOutputSchema = z.object({
+  wiki_url: z.string().describe("Wiki page URL"),
+}).strict();
+
+export const WikiCreateNodeOutputSchema = z.object({
+  node_token: z.string().optional(),
+  obj_token: z.string().optional(),
+  title: z.string().optional(),
+  wiki_url: z.string(),
+}).strict();
+
+export const WikiMoveNodeOutputSchema = z.object({
+  node_token: z.string(),
+  space_id: z.string(),
+  parent_node_token: z.string(),
+}).strict();
+
+export const WikiListNodesOutputSchema = z.object({
+  items: z.array(z.object({
+    token: z.string(),
+    title: z.string(),
+    type: z.string(),
+    has_children: z.boolean(),
+  })),
+  ...PaginationOutputFields,
+}).strict();
+
+export const WikiSpacesOutputSchema = z.object({
+  items: z.array(z.object({
+    space_id: z.string().optional(),
+    name: z.string().optional(),
+    description: z.string().optional(),
+  })),
+  ...PaginationOutputFields,
+}).strict();
+
+export const SearchAllOutputSchema = z.object({
+  items: z.array(z.object({
+    token: z.string(),
+    name: z.string(),
+    type: z.string(),
+    url: z.string().optional(),
+  })),
+  ...PaginationOutputFields,
+}).strict();
 
 // 型別匯出
 export type WikiReadInput = z.infer<typeof WikiReadSchema>;

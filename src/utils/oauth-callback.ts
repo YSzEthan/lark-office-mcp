@@ -1,16 +1,30 @@
 /**
  * OAuth Callback Server
  * 使用 Bun.serve() 建立臨時 HTTP server 接收 OAuth callback
- * 支援 port 自動切換：若預設 port 被佔用，自動嘗試下一個
+ * 固定使用 CALLBACK_PORT，若被佔用則先殺掉佔用的 process
  */
 
+import { execSync } from "child_process";
 import { CALLBACK_PORT, CALLBACK_TIMEOUT_MS } from "../constants.js";
-
-const MAX_PORT_ATTEMPTS = 10;
 
 // 追蹤上一個 callback server，確保啟動新的之前先關閉舊的
 let previousServer: ReturnType<typeof Bun.serve> | null = null;
 let previousTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * 殺掉佔用指定 port 的 process
+ */
+function killProcessOnPort(port: number): void {
+  try {
+    const pid = execSync(`lsof -ti tcp:${port}`, { encoding: "utf-8" }).trim();
+    if (pid) {
+      execSync(`kill -9 ${pid}`);
+      console.error(`[OAuth] Killed process ${pid} occupying port ${port}`);
+    }
+  } catch {
+    // 沒有 process 佔用，忽略
+  }
+}
 
 const SUCCESS_HTML = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>授權成功</title>
@@ -38,11 +52,10 @@ export interface CallbackServer {
 
 /**
  * 啟動臨時 callback server
- * 若指定的 port 被佔用，自動嘗試 port+1, port+2... 直到成功
- * @returns 包含實際 port 和 code Promise 的物件
+ * 固定使用 CALLBACK_PORT，若被佔用則先殺掉再綁定
  */
 export function startCallbackServer(
-  startPort: number = CALLBACK_PORT,
+  port: number = CALLBACK_PORT,
   timeoutMs: number = CALLBACK_TIMEOUT_MS
 ): CallbackServer {
   // 先停掉上一個 callback server，釋放 port
@@ -55,7 +68,6 @@ export function startCallbackServer(
     previousServer = null;
   }
 
-  let actualPort = startPort;
   let server: ReturnType<typeof Bun.serve> | null = null;
   let resolveCode: (code: string) => void;
   let rejectCode: (err: Error) => void;
@@ -65,9 +77,8 @@ export function startCallbackServer(
     rejectCode = reject;
   });
 
-  // 嘗試綁定 port
-  for (let attempt = 0; attempt < MAX_PORT_ATTEMPTS; attempt++) {
-    const port = startPort + attempt;
+  // 嘗試綁定，失敗則殺掉佔用 process 後重試一次
+  for (let attempt = 0; attempt < 2; attempt++) {
     try {
       server = Bun.serve({
         port,
@@ -122,24 +133,16 @@ export function startCallbackServer(
           });
         },
       });
-      actualPort = port;
-      break;
+      break; // 綁定成功
     } catch (err: unknown) {
-      const isAddrInUse =
-        err instanceof Error &&
-        ("code" in err && (err as NodeJS.ErrnoException).code === "EADDRINUSE" ||
-         err.message.includes("address already in use") ||
-         err.message.includes("EADDRINUSE"));
-      if (!isAddrInUse || attempt === MAX_PORT_ATTEMPTS - 1) {
+      if (attempt === 0) {
+        // 第一次失敗，殺掉佔用 process 後重試
+        killProcessOnPort(port);
+      } else {
         rejectCode!(err instanceof Error ? err : new Error(String(err)));
-        return { port: startPort, codePromise };
+        return { port, codePromise };
       }
-      // port 被佔用，嘗試下一個
     }
-  }
-
-  if (actualPort !== startPort) {
-    console.error(`[OAuth] Port ${startPort} 被佔用，改用 port ${actualPort}`);
   }
 
   // 記錄當前 server，供下次清理
@@ -154,5 +157,5 @@ export function startCallbackServer(
   }, timeoutMs);
   previousTimer = timer;
 
-  return { port: actualPort, codePromise };
+  return { port, codePromise };
 }

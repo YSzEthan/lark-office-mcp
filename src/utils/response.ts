@@ -15,14 +15,14 @@ export function success(
   format: ResponseFormat = ResponseFormat.MARKDOWN
 ): ToolResponse {
   let text = message;
-  let structuredContent: unknown = undefined;
+  let structuredContent: Record<string, unknown> | undefined = undefined;
 
   if (data !== undefined) {
     if (typeof data === "string") {
       text += `\n\n${data}`;
     } else {
       // MCP structuredContent 必須是 object，不能是 array
-      structuredContent = Array.isArray(data) ? { items: data } : data;
+      structuredContent = (Array.isArray(data) ? { items: data } : data) as Record<string, unknown>;
       if (format === ResponseFormat.MARKDOWN) {
         text += `\n\n${formatAsMarkdown(data)}`;
       } else {
@@ -169,18 +169,17 @@ function formatKey(key: string): string {
  */
 export function paginatedResponse<T>(
   items: T[],
-  total: number,
+  hasMore: boolean,
   offset: number,
   message: string,
   format: ResponseFormat = ResponseFormat.MARKDOWN
 ): ToolResponse {
   const response: PaginatedResponse<T> = {
     items,
-    total,
     count: items.length,
     offset,
-    has_more: total > offset + items.length,
-    ...(total > offset + items.length ? { next_offset: offset + items.length } : {}),
+    has_more: hasMore,
+    ...(hasMore ? { next_offset: offset + items.length } : {}),
   };
 
   return success(message, response, format);

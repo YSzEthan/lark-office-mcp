@@ -3,7 +3,7 @@
  */
 
 import { z } from "zod";
-import { ListPaginationSchema, SearchPaginationSchema, ResponseFormatSchema } from "./common.js";
+import { ListPaginationSchema, SearchPaginationSchema, ResponseFormatSchema, PaginationOutputFields } from "./common.js";
 
 /**
  * Document ID 參數
@@ -32,12 +32,12 @@ export const DocCreateSchema = z.object({
     .array(z.record(z.unknown()))
     .optional()
     .describe("Initial content as Lark Block JSON array (optional)"),
-}).merge(ResponseFormatSchema);
+}).merge(ResponseFormatSchema).strict();
 
 /**
  * 讀取文件
  */
-export const DocReadSchema = DocumentIdSchema;
+export const DocReadSchema = DocumentIdSchema.strict();
 
 /**
  * Blocks 轉 Markdown
@@ -46,7 +46,7 @@ export const BlocksToMarkdownSchema = z.object({
   blocks: z
     .array(z.record(z.unknown()))
     .describe("Lark blocks array from wiki_read or doc_read"),
-});
+}).strict();
 
 /**
  * 更新文件 (支援範圍更新)
@@ -68,12 +68,12 @@ export const DocUpdateSchema = DocumentIdSchema.extend({
     .min(1)
     .optional()
     .describe("End index for range update (exclusive, optional)"),
-});
+}).strict();
 
 /**
  * 刪除文件
  */
-export const DocDeleteSchema = DocumentIdSchema;
+export const DocDeleteSchema = DocumentIdSchema.strict();
 
 /**
  * 文件內容操作 (prepend, append)
@@ -83,7 +83,7 @@ export const DocContentSchema = DocumentIdSchema.extend({
     .array(z.record(z.unknown()))
     .min(1)
     .describe("Lark Block JSON array"),
-});
+}).strict();
 
 /**
  * 移動文件
@@ -101,7 +101,7 @@ export const DocMoveSchema = z.object({
     .enum(["doc", "docx", "sheet", "bitable", "file", "folder"])
     .default("docx")
     .describe("File type: doc/docx/sheet/bitable/file/folder (default: docx)"),
-}).merge(ResponseFormatSchema);
+}).merge(ResponseFormatSchema).strict();
 
 /**
  * 插入區塊
@@ -117,7 +117,7 @@ export const DocInsertBlocksSchema = DocumentIdSchema.extend({
     .min(0)
     .default(0)
     .describe("Insert position index (0-based, default: 0)"),
-});
+}).strict();
 
 /**
  * 刪除區塊
@@ -133,7 +133,7 @@ export const DocDeleteBlocksSchema = DocumentIdSchema.extend({
     .int()
     .min(1)
     .describe("End index (exclusive, required)"),
-});
+}).strict();
 
 /**
  * 移動區塊
@@ -154,7 +154,7 @@ export const DocMoveBlocksSchema = DocumentIdSchema.extend({
     .int()
     .min(0)
     .describe("Target position to move blocks to (0-based, required)"),
-});
+}).strict();
 
 /**
  * 搜尋區塊
@@ -168,7 +168,7 @@ export const DocSearchBlocksSchema = DocumentIdSchema.extend({
     .boolean()
     .default(false)
     .describe("Case sensitive search (default: false)"),
-});
+}).strict();
 
 /**
  * 列出雲端硬碟檔案
@@ -178,12 +178,68 @@ export const DriveListSchema = z.object({
     .string()
     .optional()
     .describe("Folder token (optional, omit for root directory)"),
-}).merge(ListPaginationSchema).merge(ResponseFormatSchema);
+}).merge(ListPaginationSchema).merge(ResponseFormatSchema).strict();
 
 /**
  * 最近存取的檔案
  */
-export const DriveRecentSchema = ListPaginationSchema.merge(ResponseFormatSchema);
+export const DriveRecentSchema = ListPaginationSchema.merge(ResponseFormatSchema).strict();
+
+// === Output Schemas ===
+
+export const DocCreateOutputSchema = z.object({
+  document_id: z.string(),
+  title: z.string(),
+  url: z.string(),
+}).strict();
+
+export const DocUrlOutputSchema = z.object({
+  document_id: z.string(),
+  url: z.string(),
+}).strict();
+
+export const DocPrependOutputSchema = z.object({
+  doc_url: z.string().describe("Document URL"),
+}).strict();
+
+export const DocDeleteOutputSchema = z.object({
+  document_id: z.string(),
+}).strict();
+
+export const DocMoveOutputSchema = z.object({
+  file_token: z.string(),
+  folder_token: z.string(),
+  task_id: z.string().optional(),
+}).strict();
+
+export const DocSearchBlocksOutputSchema = z.object({
+  items: z.array(z.object({
+    index: z.number(),
+    block_type: z.number(),
+    text: z.string(),
+  })),
+}).strict();
+
+export const DriveListOutputSchema = z.object({
+  items: z.array(z.object({
+    token: z.string(),
+    name: z.string(),
+    type: z.string(),
+    parent_token: z.string().optional(),
+    url: z.string().optional(),
+  })),
+  ...PaginationOutputFields,
+}).strict();
+
+export const DriveRecentOutputSchema = z.object({
+  items: z.array(z.object({
+    token: z.string(),
+    name: z.string(),
+    type: z.string(),
+    url: z.string().optional(),
+  })),
+  ...PaginationOutputFields,
+}).strict();
 
 // 型別匯出
 export type DocCreateInput = z.infer<typeof DocCreateSchema>;

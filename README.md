@@ -7,7 +7,7 @@ Lark (飛書) MCP Server - 讓 Claude 直接操作 Lark 文件、Wiki、待辦�
 | 項目 | 值 |
 |------|-----|
 | 名稱 | lark-mcp-server |
-| 版本 | 3.25.0 |
+| 版本 | 3.27.0 |
 | 執行環境 | Bun |
 | 認證方式 | OAuth 2.0 (User Access Token) |
 | Token 儲存 | `~/.lark-token.json` |
@@ -42,7 +42,7 @@ bun install
 
 使用任何工具時，若 Token 不存在或已過期，會**自動開啟瀏覽器**並啟動 OAuth callback server。只需在瀏覽器點「同意」即可完成授權。
 
-Callback port 由環境變數 `LARK_CALLBACK_PORT` 設定（必填），若該 port 被佔用會自動嘗試下一個可用 port（最多嘗試 10 次）。
+Callback port 由環境變數 `LARK_CALLBACK_PORT` 設定（必填），固定使用該 port。若被佔用會自動殺掉佔用的 process 後重新綁定。
 
 也可手動執行 `lark_auth_url` 觸發授權流程。`lark_auth` 保留作為手動備用。
 

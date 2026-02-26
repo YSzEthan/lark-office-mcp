@@ -27,9 +27,31 @@ import {
   SectionTasksSchema,
   SectionCreateSchema,
   SectionDeleteSchema,
+  TodoCreateOutputSchema,
+  TodoListOutputSchema,
+  TodoSearchOutputSchema,
+  TaskIdOutputSchema,
+  TodoUpdateOutputSchema,
+  TodoAddMembersOutputSchema,
+  TodoRemoveMembersOutputSchema,
+  TasklistCreateOutputSchema,
+  TasklistListOutputSchema,
+  TasklistGetOutputSchema,
+  TasklistUpdateOutputSchema,
+  TasklistIdOutputSchema,
+  TasklistAddTaskOutputSchema,
+  TasklistRemoveTaskOutputSchema,
+  TasklistTasksOutputSchema,
+  SubtaskCreateOutputSchema,
+  SubtaskListOutputSchema,
+  SubtaskUpdateOutputSchema,
+  SectionListOutputSchema,
+  SectionTasksOutputSchema,
+  SectionCreateOutputSchema,
+  SectionDeleteOutputSchema,
 } from "../schemas/index.js";
 import { larkRequest } from "../services/lark-client.js";
-import { success, error, simplifyTodo, simplifyTodoList } from "../utils/response.js";
+import { success, error, simplifyTodo, simplifyTodoList, paginatedResponse } from "../utils/response.js";
 
 /**
  * 註冊待辦事項工具
@@ -59,8 +81,17 @@ Examples:
   - 含截止日: todo_create summary="Submit report" due_time="2024-12-31T23:59:59+08:00"
 
 Permissions:
-  - task:task`,
+  - task:task
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to create a subtask (use subtask_create instead)`,
       inputSchema: TodoCreateSchema,
+      outputSchema: TodoCreateOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -125,8 +156,18 @@ Examples:
   - 只看已完成: todo_list completed=true
 
 Permissions:
-  - task:task`,
+  - task:task
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to search by keyword (use todo_search instead)
+  - You need tasks in a specific tasklist (use tasklist_tasks instead)`,
       inputSchema: TodoListSchema,
+      outputSchema: TodoListOutputSchema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -136,11 +177,11 @@ Permissions:
     },
     async (params) => {
       try {
-        const { completed, limit, response_format } = params;
+        const { completed, limit, offset, response_format } = params;
 
         // 根據官方文件：completed 為 boolean，true=已完成，false=未完成
         // 不傳遞 completed 參數則不過濾
-        const reqParams: Record<string, unknown> = { page_size: limit };
+        const reqParams: Record<string, string | number | boolean> = { page_size: limit };
         if (completed !== undefined) {
           reqParams.completed = completed;
         }
@@ -161,12 +202,7 @@ Permissions:
         const todos = data.items || [];
         const simplified = simplifyTodoList(todos);
 
-        let message = `Found ${simplified.length} tasks`;
-        if (data.has_more) {
-          message += " (more available)";
-        }
-
-        return success(message, simplified, response_format);
+        return paginatedResponse(simplified, !!data.has_more, offset || 0, `Found ${simplified.length} tasks`, response_format);
       } catch (err) {
         return error("Task list failed", err);
       }
@@ -201,8 +237,17 @@ Examples:
   - 搜尋未完成: todo_search query="report" completed=false
 
 Permissions:
-  - task:task`,
+  - task:task
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need all tasks without filtering (use todo_list instead)`,
       inputSchema: TodoSearchSchema,
+      outputSchema: TodoSearchOutputSchema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -212,10 +257,10 @@ Permissions:
     },
     async (params) => {
       try {
-        const { query, completed, limit, response_format } = params;
+        const { query, completed, limit, offset, response_format } = params;
 
         // 根據官方文件：completed 為 boolean，true=已完成，false=未完成
-        const searchParams: Record<string, unknown> = { page_size: limit };
+        const searchParams: Record<string, string | number | boolean> = { page_size: limit };
         if (completed !== undefined) {
           searchParams.completed = completed;
         }
@@ -242,7 +287,7 @@ Permissions:
         }
 
         const simplified = simplifyTodoList(filtered);
-        return success(`Search "${query}" found ${simplified.length} tasks`, simplified, response_format);
+        return paginatedResponse(simplified, false, offset || 0, `Search "${query}" found ${simplified.length} tasks`, response_format);
       } catch (err) {
         return error("Task search failed", err);
       }
@@ -268,8 +313,17 @@ Examples:
   - 完成任務: task_complete task_id=7XXXXXX
 
 Permissions:
-  - task:task`,
+  - task:task
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to uncomplete a task (use todo_update to clear completed_at)`,
       inputSchema: TodoCompleteSchema,
+      outputSchema: TaskIdOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -322,8 +376,18 @@ Examples:
   - 更新截止日: todo_update task_id=7XXXXXX due_time="2024-12-31T23:59:59+08:00"
 
 Permissions:
-  - task:task`,
+  - task:task
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to complete a task (use task_complete instead)
+  - You need to add/remove members (use todo_add_members/todo_remove_members)`,
       inputSchema: TodoUpdateSchema,
+      outputSchema: TodoUpdateOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -399,8 +463,17 @@ Examples:
   - 刪除任務: task_delete task_id=7XXXXXX
 
 Permissions:
-  - task:task`,
+  - task:task
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You only need to complete the task (use task_complete instead)`,
       inputSchema: TodoDeleteSchema,
+      outputSchema: TaskIdOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: true,
@@ -444,8 +517,17 @@ Examples:
   - 新增負責人: todo_add_members task_id=7XXXXXX members=["ou_xxxxx"]
 
 Permissions:
-  - task:task`,
+  - task:task
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to replace all members (remove first, then add)`,
       inputSchema: TodoAddMembersSchema,
+      outputSchema: TodoAddMembersOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -493,8 +575,17 @@ Examples:
   - 移除負責人: todo_remove_members task_id=7XXXXXX members=["ou_xxxxx"]
 
 Permissions:
-  - task:task`,
+  - task:task
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to replace all members (remove first, then add)`,
       inputSchema: TodoRemoveMembersSchema,
+      outputSchema: TodoRemoveMembersOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -542,8 +633,17 @@ Examples:
   - 建立清單: tasklist_create name="Project Tasks"
 
 Permissions:
-  - task:task`,
+  - task:task
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to create a task (use todo_create instead)`,
       inputSchema: TasklistCreateSchema,
+      outputSchema: TasklistCreateOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -595,8 +695,17 @@ Examples:
   - 列出清單: tasklist_list
 
 Permissions:
-  - task:task`,
+  - task:task
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need tasks within a tasklist (use tasklist_tasks instead)`,
       inputSchema: TasklistListSchema,
+      outputSchema: TasklistListOutputSchema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -606,10 +715,11 @@ Permissions:
     },
     async (params) => {
       try {
-        const { limit, response_format } = params;
+        const { limit, offset, response_format } = params;
 
         const data = await larkRequest<{
           items?: Array<{ guid?: string; name?: string }>;
+          has_more?: boolean;
         }>("/task/v2/tasklists", {
           params: { page_size: limit },
         });
@@ -619,7 +729,7 @@ Permissions:
           name: list.name,
         }));
 
-        return success(`Found ${lists.length} tasklists`, lists, response_format);
+        return paginatedResponse(lists, !!data.has_more, offset || 0, `Found ${lists.length} tasklists`, response_format);
       } catch (err) {
         return error("Tasklist list failed", err);
       }
@@ -649,8 +759,17 @@ Examples:
   - 取得詳情: tasklist_get tasklist_id=7XXXXXX
 
 Permissions:
-  - task:task`,
+  - task:task
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to list all tasklists (use tasklist_list instead)`,
       inputSchema: TasklistGetSchema,
+      outputSchema: TasklistGetOutputSchema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -704,8 +823,17 @@ Examples:
   - 更新名稱: tasklist_update tasklist_id=7XXXXXX name="New Name"
 
 Permissions:
-  - task:task`,
+  - task:task
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to add/remove tasks (use tasklist_add_task/tasklist_remove_task)`,
       inputSchema: TasklistUpdateSchema,
+      outputSchema: TasklistUpdateOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -760,8 +888,17 @@ Examples:
   - 刪除清單: tasklist_delete tasklist_id=7XXXXXX
 
 Permissions:
-  - task:task`,
+  - task:task
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You only need to remove tasks from it (use tasklist_remove_task instead)`,
       inputSchema: TasklistDeleteSchema,
+      outputSchema: TasklistIdOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: true,
@@ -808,8 +945,17 @@ Examples:
   - 加入分組: tasklist_add_task tasklist_id=7XXXXXX task_id=7YYYYYY section_guid=zzz
 
 Permissions:
-  - task:task`,
+  - task:task
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to create a new task (use todo_create first, then add)`,
       inputSchema: TasklistAddTaskSchema,
+      outputSchema: TasklistAddTaskOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -859,8 +1005,17 @@ Examples:
   - 移除任務: tasklist_remove_task tasklist_id=7XXXXXX task_id=7YYYYYY
 
 Permissions:
-  - task:task`,
+  - task:task
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to delete the task entirely (use task_delete instead)`,
       inputSchema: TasklistRemoveTaskSchema,
+      outputSchema: TasklistRemoveTaskOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -912,8 +1067,18 @@ Examples:
   - 列出任務: tasklist_tasks tasklist_id=7XXXXXX
 
 Permissions:
-  - task:task`,
+  - task:task
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need all your tasks (use todo_list instead)
+  - You need to search tasks (use todo_search instead)`,
       inputSchema: TasklistTasksSchema,
+      outputSchema: TasklistTasksOutputSchema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -923,7 +1088,7 @@ Permissions:
     },
     async (params) => {
       try {
-        const { tasklist_id, limit, response_format } = params;
+        const { tasklist_id, limit, offset, response_format } = params;
 
         // 先取得任務 ID 列表
         const listData = await larkRequest<{
@@ -973,7 +1138,7 @@ Permissions:
           })
         );
 
-        return success(`Found ${tasks.length} tasks in tasklist`, tasks, response_format);
+        return paginatedResponse(tasks, false, offset || 0, `Found ${tasks.length} tasks in tasklist`, response_format);
       } catch (err) {
         return error("Tasklist tasks failed", err);
       }
@@ -1009,8 +1174,17 @@ Examples:
   - 建立子任務: subtask_create parent_task_id=7XXXXXX summary="完成報告"
 
 Permissions:
-  - task:task`,
+  - task:task
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to create a top-level task (use todo_create instead)`,
       inputSchema: SubtaskCreateSchema,
+      outputSchema: SubtaskCreateOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -1109,8 +1283,17 @@ Examples:
   - 列出子任務: subtask_list parent_task_id=7XXXXXX
 
 Permissions:
-  - task:task`,
+  - task:task
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need all tasks (use todo_list instead)`,
       inputSchema: SubtaskListSchema,
+      outputSchema: SubtaskListOutputSchema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -1120,7 +1303,7 @@ Permissions:
     },
     async (params) => {
       try {
-        const { parent_task_id, limit, response_format } = params;
+        const { parent_task_id, limit, offset, response_format } = params;
 
         const data = await larkRequest<{
           items?: Array<{
@@ -1157,12 +1340,7 @@ Permissions:
           return item;
         });
 
-        let message = `找到 ${subtasks.length} 個子任務`;
-        if (data.has_more) {
-          message += "（還有更多）";
-        }
-
-        return success(message, subtasks, response_format);
+        return paginatedResponse(subtasks, !!data.has_more, offset || 0, `Found ${subtasks.length} subtasks`, response_format);
       } catch (err) {
         return error("列出子任務失敗", err);
       }
@@ -1193,8 +1371,17 @@ Examples:
   - 更新摘要: subtask_update task_id=7XXXXXX summary="Updated"
 
 Permissions:
-  - task:task`,
+  - task:task
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to complete the subtask (use task_complete instead)`,
       inputSchema: SubtaskUpdateSchema,
+      outputSchema: SubtaskUpdateOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -1280,8 +1467,17 @@ Examples:
   - 列出清單分組: section_list resource_type="tasklist" resource_id=xxx
 
 Permissions:
-  - task:task`,
+  - task:task
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need tasks within a section (use section_tasks instead)`,
       inputSchema: SectionListSchema,
+      outputSchema: SectionListOutputSchema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -1293,7 +1489,7 @@ Permissions:
       try {
         const { resource_type, resource_id, limit, response_format } = params;
 
-        const reqParams: Record<string, unknown> = {
+        const reqParams: Record<string, string | number | boolean> = {
           page_size: limit,
           resource_type: resource_type || "my_tasks",
         };
@@ -1316,12 +1512,7 @@ Permissions:
           name: section.name,
         }));
 
-        let message = `Found ${sections.length} sections`;
-        if (data.has_more) {
-          message += " (more available)";
-        }
-
-        return success(message, sections, response_format);
+        return paginatedResponse(sections, !!data.has_more, 0, `Found ${sections.length} sections`, response_format);
       } catch (err) {
         return error("Section list failed", err);
       }
@@ -1356,8 +1547,18 @@ Examples:
   - 只看未完成: section_tasks section_guid=xxx completed=false
 
 Permissions:
-  - task:task`,
+  - task:task
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need all tasks (use todo_list instead)
+  - You need tasks in a tasklist (use tasklist_tasks instead)`,
       inputSchema: SectionTasksSchema,
+      outputSchema: SectionTasksOutputSchema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -1369,7 +1570,7 @@ Permissions:
       try {
         const { section_guid, completed, limit, response_format } = params;
 
-        const reqParams: Record<string, unknown> = { page_size: limit };
+        const reqParams: Record<string, string | number | boolean> = { page_size: limit };
         if (completed !== undefined) {
           reqParams.completed = completed;
         }
@@ -1403,12 +1604,7 @@ Permissions:
           return item;
         });
 
-        let message = `Found ${tasks.length} tasks in section`;
-        if (data.has_more) {
-          message += " (more available)";
-        }
-
-        return success(message, tasks, response_format);
+        return paginatedResponse(tasks, !!data.has_more, 0, `Found ${tasks.length} tasks in section`, response_format);
       } catch (err) {
         return error("Section tasks failed", err);
       }
@@ -1439,8 +1635,17 @@ Examples:
   - 在清單建立: section_create name="Bug" resource_type="tasklist" resource_id=xxx
 
 Permissions:
-  - task:task`,
+  - task:task
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to create a tasklist (use tasklist_create instead)`,
       inputSchema: SectionCreateSchema,
+      outputSchema: SectionCreateOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -1497,8 +1702,17 @@ Examples:
   - 刪除分組: section_delete section_guid=xxx
 
 Permissions:
-  - task:task`,
+  - task:task
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You only need to move tasks out (remove them from section first)`,
       inputSchema: SectionDeleteSchema,
+      outputSchema: SectionDeleteOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: true,

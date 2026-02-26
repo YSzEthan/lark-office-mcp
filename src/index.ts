@@ -21,7 +21,7 @@ import { registerTodoTools } from "./tools/todo.js";
 // Create MCP server instance
 const server = new McpServer({
   name: "lark-mcp-server",
-  version: "3.1.0",
+  version: "3.27.0",
 });
 
 // Register all tools
@@ -34,7 +34,7 @@ registerTodoTools(server);
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("Lark MCP Server v3.1.0 started");
+  console.error("Lark MCP Server v3.27.0 started");
 }
 
 main().catch((err) => {

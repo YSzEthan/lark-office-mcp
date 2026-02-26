@@ -14,6 +14,12 @@ import {
   WikiCreateNodeSchema,
   WikiMoveNodeSchema,
   SearchAllSchema,
+  WikiUrlOutputSchema,
+  WikiCreateNodeOutputSchema,
+  WikiMoveNodeOutputSchema,
+  WikiListNodesOutputSchema,
+  WikiSpacesOutputSchema,
+  SearchAllOutputSchema,
 } from "../schemas/index.js";
 import {
   getWikiNode,
@@ -23,7 +29,7 @@ import {
   larkRequest,
 } from "../services/lark-client.js";
 import { blocksToMarkdown } from "../utils/markdown.js";
-import { success, error, simplifyNodeList, simplifySearchResults, truncate } from "../utils/response.js";
+import { success, error, simplifyNodeList, simplifySearchResults, truncate, paginatedResponse } from "../utils/response.js";
 import { WIKI_URL, ResponseFormat } from "../constants.js";
 
 /**
@@ -47,7 +53,16 @@ Examples:
   - 讀取 Wiki 頁面: wiki_read wiki_token=wikcnXXXXX
 
 Permissions:
-  - wiki:wiki`,
+  - wiki:wiki
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need Markdown format (use wiki_read then blocks_to_markdown)
+  - You need to read a standalone document (use doc_read instead)`,
       inputSchema: WikiReadSchema,
       annotations: {
         readOnlyHint: true,
@@ -90,8 +105,18 @@ Examples:
   - 插入段落: wiki_prepend wiki_token=wikcnXXXXX blocks=[{"block_type":2,"text":{"elements":[{"text_run":{"content":"Hello"}}]}}]
 
 Permissions:
-  - wiki:wiki`,
+  - wiki:wiki
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to insert at a specific position (use wiki_insert_blocks instead)
+  - You need to replace content (use wiki_update instead)`,
       inputSchema: WikiContentSchema,
+      outputSchema: WikiUrlOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -136,8 +161,18 @@ Examples:
   - 追加頁尾: wiki_append wiki_token=wikcnXXXXX blocks=[{"block_type":4,"heading2":{"elements":[{"text_run":{"content":"Footer"}}]}}]
 
 Permissions:
-  - wiki:wiki`,
+  - wiki:wiki
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to insert at a specific position (use wiki_insert_blocks instead)
+  - You need to replace content (use wiki_update instead)`,
       inputSchema: WikiContentSchema,
+      outputSchema: WikiUrlOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -187,8 +222,18 @@ Examples:
   - 範圍更新: wiki_update wiki_token=wikcnXXXXX blocks=[{"block_type":2,"text":{"elements":[{"text_run":{"content":"Replaced"}}]}}] start_index=0 end_index=3
 
 Permissions:
-  - wiki:wiki`,
+  - wiki:wiki
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You only need to append content (use wiki_append instead)
+  - You only need to prepend content (use wiki_prepend instead)`,
       inputSchema: WikiUpdateSchema,
+      outputSchema: WikiUrlOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: true,
@@ -286,8 +331,18 @@ Examples:
   - 在指定位置: wiki_insert_blocks wiki_token=wikcnXXXXX blocks=[{"block_type":2,"text":{"elements":[{"text_run":{"content":"New"}}]}}] index=5
 
 Permissions:
-  - wiki:wiki`,
+  - wiki:wiki
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You want to append at the end (use wiki_append instead)
+  - You want to prepend at the top (use wiki_prepend instead)`,
       inputSchema: WikiInsertBlocksSchema,
+      outputSchema: WikiUrlOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -333,8 +388,17 @@ Examples:
   - 刪除區塊: wiki_delete_blocks wiki_token=wikcnXXXXX start_index=2 end_index=5
 
 Permissions:
-  - wiki:wiki`,
+  - wiki:wiki
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to replace content (use wiki_update with range instead)`,
       inputSchema: WikiDeleteBlocksSchema,
+      outputSchema: WikiUrlOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: true,
@@ -399,8 +463,17 @@ Examples:
   - 列出子節點: wiki_list_nodes space_id=7XXXXXX parent_node_token=wikcnXXX
 
 Permissions:
-  - wiki:wiki`,
+  - wiki:wiki
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to search across spaces (use lark_search instead)`,
       inputSchema: WikiListNodesSchema,
+      outputSchema: WikiListNodesOutputSchema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -410,7 +483,7 @@ Permissions:
     },
     async (params) => {
       try {
-        const { space_id, parent_node_token, limit, response_format } = params;
+        const { space_id, parent_node_token, limit, offset, response_format } = params;
 
         const reqParams: Record<string, string | number> = { page_size: limit };
         if (parent_node_token) {
@@ -425,10 +498,11 @@ Permissions:
             obj_type?: string;
             has_child?: boolean;
           }>;
+          has_more?: boolean;
         }>(`/wiki/v2/spaces/${space_id}/nodes`, { params: reqParams });
 
         const simplified = simplifyNodeList(data.items || []);
-        return success(`Found ${simplified.length} nodes`, simplified, response_format);
+        return paginatedResponse(simplified, !!data.has_more, offset || 0, `Found ${simplified.length} nodes`, response_format);
       } catch (err) {
         return error("Wiki list nodes failed", err);
       }
@@ -463,8 +537,17 @@ Examples:
   - 建立試算表: wiki_create_node space_id=7XXXXXX title="Data" obj_type="sheet"
 
 Permissions:
-  - wiki:wiki`,
+  - wiki:wiki
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to create a standalone document (use doc_create instead)`,
       inputSchema: WikiCreateNodeSchema,
+      outputSchema: WikiCreateNodeOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -536,8 +619,17 @@ Examples:
 
 Permissions:
   - 需要節點、原父節點、目標父節點的編輯權限
-  - 需要 wiki:node:move 權限`,
+  - 需要 wiki:node:move 權限
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to move a standalone file (use doc_move instead)`,
       inputSchema: WikiMoveNodeSchema,
+      outputSchema: WikiMoveNodeOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -605,8 +697,17 @@ Examples:
   - 列出所有空間: wiki_spaces
 
 Permissions:
-  - wiki:wiki`,
+  - wiki:wiki
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You already know the space_id`,
       inputSchema: WikiSpacesSchema,
+      outputSchema: WikiSpacesOutputSchema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -616,7 +717,7 @@ Permissions:
     },
     async (params) => {
       try {
-        const { limit, response_format } = params;
+        const { limit, offset, response_format } = params;
 
         const data = await larkRequest<{
           items?: Array<{
@@ -624,6 +725,7 @@ Permissions:
             name?: string;
             description?: string;
           }>;
+          has_more?: boolean;
         }>("/wiki/v2/spaces", {
           params: { page_size: limit },
         });
@@ -634,7 +736,7 @@ Permissions:
           description: s.description,
         }));
 
-        return success(`Found ${spaces.length} Wiki spaces`, spaces, response_format);
+        return paginatedResponse(spaces, !!data.has_more, offset || 0, `Found ${spaces.length} Wiki spaces`, response_format);
       } catch (err) {
         return error("Wiki spaces list failed", err);
       }
@@ -674,8 +776,18 @@ Examples:
 
 Permissions:
   - drive:drive
-  - wiki:wiki`,
+  - wiki:wiki
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to browse a specific folder (use drive_list instead)
+  - You need to list wiki nodes (use wiki_list_nodes instead)`,
       inputSchema: SearchAllSchema,
+      outputSchema: SearchAllOutputSchema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -771,7 +883,7 @@ Permissions:
 
             const limited = files.slice(0, limit);
             const simplified = simplifySearchResults(limited);
-            return success(`Search "${query}" found ${simplified.length} results`, simplified, response_format);
+            return paginatedResponse(simplified, entities.length > limit, offset || 0, `Search "${query}" found ${simplified.length} results`, response_format);
           }
         } catch {
           // 搜尋 API 失敗，fallback 到方案 B
@@ -804,7 +916,7 @@ Permissions:
         }
 
         const simplified = simplifySearchResults(files);
-        return success(`Search "${query}" found ${simplified.length} results`, simplified, response_format);
+        return paginatedResponse(simplified, false, offset || 0, `Search "${query}" found ${simplified.length} results`, response_format);
       } catch (err) {
         return error("Search failed", err);
       }

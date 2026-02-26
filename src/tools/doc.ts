@@ -17,6 +17,14 @@ import {
   DriveListSchema,
   DriveRecentSchema,
   BlocksToMarkdownSchema,
+  DocCreateOutputSchema,
+  DocUrlOutputSchema,
+  DocPrependOutputSchema,
+  DocDeleteOutputSchema,
+  DocMoveOutputSchema,
+  DocSearchBlocksOutputSchema,
+  DriveListOutputSchema,
+  DriveRecentOutputSchema,
 } from "../schemas/index.js";
 import {
   createDocument,
@@ -26,7 +34,7 @@ import {
   larkRequest,
 } from "../services/lark-client.js";
 import { blocksToMarkdown } from "../utils/markdown.js";
-import { success, error, simplifySearchResults, truncate } from "../utils/response.js";
+import { success, error, simplifySearchResults, truncate, paginatedResponse } from "../utils/response.js";
 import type { LarkBlock } from "../types.js";
 import { DOC_URL } from "../constants.js";
 
@@ -58,8 +66,17 @@ Examples:
   - 建立有內容的文件: doc_create folder_token=fldcnXXXXX title="Report" blocks=[{"block_type":3,"heading1":{"elements":[{"text_run":{"content":"Summary"}}]}}]
 
 Permissions:
-  - drive:drive`,
+  - drive:drive
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to create a wiki page (use wiki_create_node instead)`,
       inputSchema: DocCreateSchema,
+      outputSchema: DocCreateOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -105,7 +122,16 @@ Examples:
   - 讀取文件: doc_read document_id=doccnXXXXX
 
 Permissions:
-  - drive:drive`,
+  - drive:drive
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need Markdown format (use doc_read then blocks_to_markdown)
+  - You need to read a wiki page (use wiki_read instead)`,
       inputSchema: DocReadSchema,
       annotations: {
         readOnlyHint: true,
@@ -147,8 +173,18 @@ Examples:
   - 插入段落: doc_prepend document_id=doccnXXXXX blocks=[{"block_type":2,"text":{"elements":[{"text_run":{"content":"Hello"}}]}}]
 
 Permissions:
-  - drive:drive`,
+  - drive:drive
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to insert at a specific position (use doc_insert_blocks instead)
+  - You need to replace content (use doc_update instead)`,
       inputSchema: DocContentSchema,
+      outputSchema: DocPrependOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -193,8 +229,18 @@ Examples:
   - 追加頁尾: doc_append document_id=doccnXXXXX blocks=[{"block_type":4,"heading2":{"elements":[{"text_run":{"content":"Footer"}}]}}]
 
 Permissions:
-  - drive:drive`,
+  - drive:drive
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to insert at a specific position (use doc_insert_blocks instead)
+  - You need to replace content (use doc_update instead)`,
       inputSchema: DocContentSchema,
+      outputSchema: DocUrlOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -245,8 +291,18 @@ Examples:
   - 範圍更新: doc_update document_id=doccnXXXXX blocks=[{"block_type":2,"text":{"elements":[{"text_run":{"content":"New"}}]}}] start_index=0 end_index=3
 
 Permissions:
-  - drive:drive`,
+  - drive:drive
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You only need to append content (use doc_append instead)
+  - You only need to prepend content (use doc_prepend instead)`,
       inputSchema: DocUpdateSchema,
+      outputSchema: DocUrlOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: true,
@@ -341,8 +397,18 @@ Examples:
   - 刪除文件: doc_delete document_id=doccnXXXXX
 
 Permissions:
-  - drive:drive`,
+  - drive:drive
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You only need to clear content (use doc_update instead)
+  - The document is a wiki node (remove from wiki instead)`,
       inputSchema: DocDeleteSchema,
+      outputSchema: DocDeleteOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: true,
@@ -390,8 +456,17 @@ Examples:
   - 移動試算表: doc_move file_token=shtcnXXXXX folder_token=fldcnYYYYY type="sheet"
 
 Permissions:
-  - drive:drive`,
+  - drive:drive
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to move a wiki node (use wiki_move_node instead)`,
       inputSchema: DocMoveSchema,
+      outputSchema: DocMoveOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -447,8 +522,18 @@ Examples:
   - 在指定位置插入: doc_insert_blocks document_id=doccnXXXXX blocks=[{"block_type":2,"text":{"elements":[{"text_run":{"content":"New"}}]}}] index=5
 
 Permissions:
-  - drive:drive`,
+  - drive:drive
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You want to append at the end (use doc_append instead)
+  - You want to prepend at the top (use doc_prepend instead)`,
       inputSchema: DocInsertBlocksSchema,
+      outputSchema: DocUrlOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -495,8 +580,17 @@ Examples:
   - 刪除第 2-4 個區塊: doc_delete_blocks document_id=doccnXXXXX start_index=2 end_index=5
 
 Permissions:
-  - drive:drive`,
+  - drive:drive
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to replace content (use doc_update with range instead)`,
       inputSchema: DocDeleteBlocksSchema,
+      outputSchema: DocUrlOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: true,
@@ -557,8 +651,17 @@ Examples:
   - 將第 5-7 個區塊移到開頭: doc_move_blocks document_id=doccnXXXXX start_index=5 end_index=7 target_index=0
 
 Permissions:
-  - drive:drive`,
+  - drive:drive
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to move blocks between documents (copy manually instead)`,
       inputSchema: DocMoveBlocksSchema,
+      outputSchema: DocUrlOutputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -655,8 +758,17 @@ Examples:
   - 區分大小寫: doc_search_blocks document_id=doccnXXXXX keyword="API" case_sensitive=true
 
 Permissions:
-  - drive:drive`,
+  - drive:drive
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to search across documents (use lark_search instead)`,
       inputSchema: DocSearchBlocksSchema,
+      outputSchema: DocSearchBlocksOutputSchema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -701,7 +813,7 @@ Permissions:
         const results: Array<{ index: number; block_type: number; text: string }> = [];
 
         childBlocks.forEach((block, index) => {
-          const text = extractText(block);
+          const text = extractText(block as unknown as Record<string, unknown>);
           const searchText = case_sensitive ? text : text.toLowerCase();
 
           if (searchText.includes(searchKeyword)) {
@@ -752,8 +864,18 @@ Examples:
   - 列出指定資料夾: drive_list folder_token=fldcnXXXXX
 
 Permissions:
-  - drive:drive`,
+  - drive:drive
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to search by keyword (use lark_search instead)
+  - You need to list wiki nodes (use wiki_list_nodes instead)`,
       inputSchema: DriveListSchema,
+      outputSchema: DriveListOutputSchema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -763,7 +885,7 @@ Permissions:
     },
     async (params) => {
       try {
-        const { folder_token, limit, response_format } = params;
+        const { folder_token, limit, offset, response_format } = params;
 
         const reqParams: Record<string, string | number> = { page_size: limit };
         if (folder_token) {
@@ -795,7 +917,7 @@ Permissions:
           url: f.url,
         }));
 
-        return success(`Found ${simplified.length} files/folders`, simplified, response_format);
+        return paginatedResponse(simplified, !!data.has_more, offset || 0, `Found ${simplified.length} files/folders`, response_format);
       } catch (err) {
         return error("Drive list failed", err);
       }
@@ -828,8 +950,18 @@ Examples:
   - 限制數量: drive_recent limit=5
 
 Permissions:
-  - drive:drive`,
+  - drive:drive
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to browse a specific folder (use drive_list instead)
+  - You need to search by keyword (use lark_search instead)`,
       inputSchema: DriveRecentSchema,
+      outputSchema: DriveRecentOutputSchema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -839,7 +971,7 @@ Permissions:
     },
     async (params) => {
       try {
-        const { limit, response_format } = params;
+        const { limit, offset, response_format } = params;
 
         // 嘗試多個可能的 API 端點
         const endpoints = [
@@ -873,12 +1005,12 @@ Permissions:
             if (files.length > 0) {
               const simplified = files.map((f) => ({
                 token: f.token || "",
-                name: f.name || f.title || "(untitled)",
+                name: (f as Record<string, unknown>).name as string || (f as Record<string, unknown>).title as string || "(untitled)",
                 type: f.type || "unknown",
                 url: f.url,
               }));
 
-              return success(`Found ${simplified.length} recent files`, simplified, response_format);
+              return paginatedResponse(simplified, false, offset || 0, `Found ${simplified.length} recent files`, response_format);
             }
           } catch {
             // 嘗試下一個端點
@@ -908,7 +1040,15 @@ Returns:
 
 Examples:
   - 轉換文件內容: blocks_to_markdown blocks=[...]
-  - 搭配 doc_read 使用: 先執行 doc_read，再將回傳的 blocks 傳入此工具`,
+  - 搭配 doc_read 使用: 先執行 doc_read，再將回傳的 blocks 傳入此工具
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need the raw block data for editing (use wiki_read or doc_read directly)`,
       inputSchema: BlocksToMarkdownSchema,
       annotations: {
         readOnlyHint: true,
@@ -920,7 +1060,7 @@ Examples:
     async (params) => {
       try {
         const { blocks } = params;
-        const markdown = await blocksToMarkdown(blocks as LarkBlock[]);
+        const markdown = await blocksToMarkdown(blocks as unknown as LarkBlock[]);
         return success("Conversion successful", truncate(markdown));
       } catch (err) {
         return error("Conversion failed", err);

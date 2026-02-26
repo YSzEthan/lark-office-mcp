@@ -3,7 +3,7 @@
  */
 
 import { z } from "zod";
-import { ListPaginationSchema, SearchPaginationSchema, ResponseFormatSchema } from "./common.js";
+import { ListPaginationSchema, SearchPaginationSchema, ResponseFormatSchema, PaginationOutputFields } from "./common.js";
 
 /**
  * Task ID 參數
@@ -43,7 +43,7 @@ export const TodoCreateSchema = z.object({
     .string()
     .optional()
     .describe("Due time in ISO 8601 format (e.g., 2024-12-31T23:59:59+08:00)"),
-}).merge(ResponseFormatSchema);
+}).merge(ResponseFormatSchema).strict();
 
 /**
  * 列出待辦事項
@@ -53,7 +53,7 @@ export const TodoListSchema = z.object({
     .boolean()
     .default(false)
     .describe("List only completed tasks (default: false)"),
-}).merge(ListPaginationSchema).merge(ResponseFormatSchema);
+}).merge(ListPaginationSchema).merge(ResponseFormatSchema).strict();
 
 /**
  * 搜尋待辦事項
@@ -67,12 +67,12 @@ export const TodoSearchSchema = z.object({
     .boolean()
     .optional()
     .describe("Search only completed tasks"),
-}).merge(SearchPaginationSchema).merge(ResponseFormatSchema);
+}).merge(SearchPaginationSchema).merge(ResponseFormatSchema).strict();
 
 /**
  * 完成待辦事項
  */
-export const TodoCompleteSchema = TaskIdSchema;
+export const TodoCompleteSchema = TaskIdSchema.strict();
 
 /**
  * 更新待辦事項
@@ -97,7 +97,7 @@ export const TodoUpdateSchema = TaskIdSchema.extend({
     .string()
     .optional()
     .describe("New due time (ISO 8601 format)"),
-});
+}).strict();
 
 /**
  * 新增任務負責人
@@ -107,7 +107,7 @@ export const TodoAddMembersSchema = TaskIdSchema.extend({
     .array(z.string())
     .min(1)
     .describe("User IDs to add (open_id or user_id)"),
-});
+}).strict();
 
 /**
  * 移除任務負責人
@@ -117,12 +117,12 @@ export const TodoRemoveMembersSchema = TaskIdSchema.extend({
     .array(z.string())
     .min(1)
     .describe("User IDs to remove (open_id or user_id)"),
-});
+}).strict();
 
 /**
  * 刪除待辦事項
  */
-export const TodoDeleteSchema = TaskIdSchema;
+export const TodoDeleteSchema = TaskIdSchema.strict();
 
 /**
  * 建立任務清單
@@ -133,17 +133,17 @@ export const TasklistCreateSchema = z.object({
     .min(1)
     .max(200)
     .describe("Tasklist name (required)"),
-}).merge(ResponseFormatSchema);
+}).merge(ResponseFormatSchema).strict();
 
 /**
  * 列出任務清單
  */
-export const TasklistListSchema = ListPaginationSchema.merge(ResponseFormatSchema);
+export const TasklistListSchema = ListPaginationSchema.merge(ResponseFormatSchema).strict();
 
 /**
  * 取得任務清單詳情
  */
-export const TasklistGetSchema = TasklistIdSchema.merge(ResponseFormatSchema);
+export const TasklistGetSchema = TasklistIdSchema.merge(ResponseFormatSchema).strict();
 
 /**
  * 更新任務清單
@@ -155,12 +155,12 @@ export const TasklistUpdateSchema = TasklistIdSchema.extend({
     .max(200)
     .optional()
     .describe("New tasklist name"),
-});
+}).strict();
 
 /**
  * 刪除任務清單
  */
-export const TasklistDeleteSchema = TasklistIdSchema;
+export const TasklistDeleteSchema = TasklistIdSchema.strict();
 
 /**
  * 將待辦加入任務清單
@@ -170,17 +170,17 @@ export const TasklistAddTaskSchema = TasklistIdSchema.merge(TaskIdSchema).extend
     .string()
     .optional()
     .describe("Section GUID to add task to (optional)"),
-});
+}).strict();
 
 /**
  * 從任務清單移除待辦
  */
-export const TasklistRemoveTaskSchema = TasklistIdSchema.merge(TaskIdSchema);
+export const TasklistRemoveTaskSchema = TasklistIdSchema.merge(TaskIdSchema).strict();
 
 /**
  * 列出任務清單中的待辦
  */
-export const TasklistTasksSchema = TasklistIdSchema.merge(ListPaginationSchema).merge(ResponseFormatSchema);
+export const TasklistTasksSchema = TasklistIdSchema.merge(ListPaginationSchema).merge(ResponseFormatSchema).strict();
 
 /**
  * 子任務父任務 ID 參數
@@ -213,12 +213,12 @@ export const SubtaskCreateSchema = SubtaskParentSchema.extend({
     .string()
     .optional()
     .describe("Due time in ISO 8601 format (e.g., 2024-12-31T23:59:59+08:00)"),
-}).merge(ResponseFormatSchema);
+}).merge(ResponseFormatSchema).strict();
 
 /**
  * 列出子任務
  */
-export const SubtaskListSchema = SubtaskParentSchema.merge(ListPaginationSchema).merge(ResponseFormatSchema);
+export const SubtaskListSchema = SubtaskParentSchema.merge(ListPaginationSchema).merge(ResponseFormatSchema).strict();
 
 /**
  * 更新子任務
@@ -242,7 +242,7 @@ export const SubtaskUpdateSchema = TaskIdSchema.extend({
     .string()
     .optional()
     .describe("New due time in ISO 8601 format"),
-});
+}).strict();
 
 /**
  * Section GUID 參數
@@ -273,7 +273,7 @@ export const SectionListSchema = z.object({
     .max(100)
     .default(50)
     .describe("Max results (default: 50)"),
-}).merge(ResponseFormatSchema);
+}).merge(ResponseFormatSchema).strict();
 
 /**
  * 列出 Section 中的任務
@@ -290,7 +290,7 @@ export const SectionTasksSchema = SectionGuidSchema.extend({
     .max(100)
     .default(50)
     .describe("Max results (default: 50)"),
-}).merge(ResponseFormatSchema);
+}).merge(ResponseFormatSchema).strict();
 
 /**
  * 建立 Section
@@ -308,12 +308,162 @@ export const SectionCreateSchema = z.object({
     .string()
     .optional()
     .describe("Tasklist GUID (required when resource_type is 'tasklist')"),
-}).merge(ResponseFormatSchema);
+}).merge(ResponseFormatSchema).strict();
 
 /**
  * 刪除 Section
  */
-export const SectionDeleteSchema = SectionGuidSchema;
+export const SectionDeleteSchema = SectionGuidSchema.strict();
+
+// === Output Schemas ===
+
+const SimplifiedTodoSchema = z.object({
+  id: z.string(),
+  summary: z.string(),
+  description: z.string().optional(),
+  due_time: z.string().optional(),
+  is_completed: z.boolean(),
+  creator: z.string().optional(),
+});
+
+export const TodoCreateOutputSchema = z.object({
+  id: z.string(),
+  summary: z.string(),
+}).strict();
+
+export const TodoListOutputSchema = z.object({
+  items: z.array(SimplifiedTodoSchema),
+  ...PaginationOutputFields,
+}).strict();
+
+export const TodoSearchOutputSchema = z.object({
+  items: z.array(SimplifiedTodoSchema),
+  ...PaginationOutputFields,
+}).strict();
+
+export const TaskIdOutputSchema = z.object({
+  task_id: z.string(),
+}).strict();
+
+export const TodoUpdateOutputSchema = z.object({
+  task_id: z.string(),
+  updated_fields: z.array(z.string()),
+}).strict();
+
+export const TodoAddMembersOutputSchema = z.object({
+  task_id: z.string(),
+  added: z.array(z.string()),
+}).strict();
+
+export const TodoRemoveMembersOutputSchema = z.object({
+  task_id: z.string(),
+  removed: z.array(z.string()),
+}).strict();
+
+export const TasklistCreateOutputSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+}).strict();
+
+export const TasklistListOutputSchema = z.object({
+  items: z.array(z.object({
+    id: z.string().optional(),
+    name: z.string().optional(),
+  })),
+  ...PaginationOutputFields,
+}).strict();
+
+export const TasklistGetOutputSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().optional(),
+  creator: z.string().optional(),
+  members: z.array(z.string()).optional(),
+}).strict();
+
+export const TasklistUpdateOutputSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+}).strict();
+
+export const TasklistIdOutputSchema = z.object({
+  tasklist_id: z.string(),
+}).strict();
+
+export const TasklistAddTaskOutputSchema = z.object({
+  tasklist_id: z.string(),
+  task_id: z.string(),
+  section_guid: z.string().optional(),
+}).strict();
+
+export const TasklistRemoveTaskOutputSchema = z.object({
+  tasklist_id: z.string(),
+  task_id: z.string(),
+}).strict();
+
+export const TasklistTasksOutputSchema = z.object({
+  items: z.array(z.object({
+    id: z.string().optional(),
+    summary: z.string().optional(),
+    is_completed: z.boolean(),
+    start_time: z.string().nullable().optional(),
+    due_time: z.string().nullable().optional(),
+    completed_at: z.string().nullable().optional(),
+  })),
+  ...PaginationOutputFields,
+}).strict();
+
+export const SubtaskCreateOutputSchema = z.object({
+  id: z.string(),
+  summary: z.string(),
+  parent_task_id: z.string(),
+  members: z.array(z.string()).optional(),
+  start_time: z.string().optional(),
+  due_time: z.string().optional(),
+}).strict();
+
+export const SubtaskListOutputSchema = z.object({
+  items: z.array(z.object({
+    id: z.string().optional(),
+    summary: z.string().optional(),
+    is_completed: z.boolean(),
+    members: z.array(z.string()).optional(),
+    start_time: z.string().optional(),
+    due_time: z.string().optional(),
+  })),
+  ...PaginationOutputFields,
+}).strict();
+
+export const SubtaskUpdateOutputSchema = z.object({
+  task_id: z.string(),
+  updated_fields: z.array(z.string()),
+}).strict();
+
+export const SectionListOutputSchema = z.object({
+  items: z.array(z.object({
+    guid: z.string().optional(),
+    name: z.string().optional(),
+  })),
+  ...PaginationOutputFields,
+}).strict();
+
+export const SectionTasksOutputSchema = z.object({
+  items: z.array(z.object({
+    id: z.string().optional(),
+    summary: z.string().optional(),
+    is_completed: z.boolean(),
+    due_time: z.string().optional(),
+  })),
+  ...PaginationOutputFields,
+}).strict();
+
+export const SectionCreateOutputSchema = z.object({
+  guid: z.string(),
+  name: z.string(),
+}).strict();
+
+export const SectionDeleteOutputSchema = z.object({
+  section_guid: z.string(),
+}).strict();
 
 // 型別匯出
 export type SectionCreateInput = z.infer<typeof SectionCreateSchema>;

@@ -15,8 +15,9 @@ export interface TokenData {
  * MCP 工具回應格式
  */
 export interface ToolResponse {
+  [key: string]: unknown;
   content: Array<{ type: "text"; text: string }>;
-  structuredContent?: unknown;
+  structuredContent?: Record<string, unknown>;
   isError?: boolean;
 }
 
@@ -25,7 +26,6 @@ export interface ToolResponse {
  */
 export interface PaginatedResponse<T> {
   items: T[];
-  total: number;
   count: number;
   offset: number;
   has_more: boolean;
