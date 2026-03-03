@@ -14,6 +14,7 @@ import {
   DocDeleteBlocksSchema,
   DocMoveBlocksSchema,
   DocSearchBlocksSchema,
+  DocBatchUpdateBlocksSchema,
   DriveListSchema,
   DriveRecentSchema,
   BlocksToMarkdownSchema,
@@ -31,6 +32,7 @@ import {
   getDocumentBlocks,
   getDocumentRootBlockId,
   insertBlocks,
+  batchUpdateBlocks,
   larkRequest,
 } from "../services/lark-client.js";
 import { blocksToMarkdown } from "../utils/markdown.js";
@@ -832,6 +834,66 @@ Don't use when:
         return success(`Found ${results.length} blocks containing "${keyword}"`, results);
       } catch (err) {
         return error("Document search blocks failed", err);
+      }
+    }
+  );
+
+  // doc_batch_update_blocks
+  server.registerTool(
+    "doc_batch_update_blocks",
+    {
+      title: "Batch Update Document Blocks",
+      description: `批次更新多個 block 的文字內容。特別適合一次填入表格多個 cell。
+
+Args:
+  - document_id (string): 文件 ID（必填）
+  - requests (array): 更新請求陣列，每項包含：
+    - block_id (string): 要更新的 Block ID（從 doc_read 取得）
+    - update_text_elements (object): 文字元素更新內容
+      - elements (array): 文字元素陣列
+
+Returns:
+  {
+    "document_id": string,  // 文件 ID
+    "url": string           // 文件 URL
+  }
+
+Examples:
+  - 更新單一 block: doc_batch_update_blocks document_id=doccnXXX requests=[{"block_id":"blk1","update_text_elements":{"elements":[{"text_run":{"content":"Hello"}}]}}]
+  - 批次更新表格 cell: 先用 doc_read 取得 cell 的 text block_id，再一次更新多個 cell
+  - 典型流程: doc_read → 找到 table block → 取得 cell children 的 block_id → doc_batch_update_blocks
+
+Permissions:
+  - drive:drive
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to create new blocks (use doc_insert_blocks or doc_append instead)
+  - You need to delete blocks (use doc_delete_blocks instead)
+  - You only need to update one block (still works, but single PATCH may suffice)`,
+      inputSchema: DocBatchUpdateBlocksSchema,
+      outputSchema: DocUrlOutputSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { document_id, requests } = params;
+        await batchUpdateBlocks(document_id, requests);
+        return success(
+          `Batch updated ${requests.length} blocks`,
+          { document_id, url: DOC_URL(document_id) }
+        );
+      } catch (err) {
+        return error("Batch update blocks failed", err);
       }
     }
   );

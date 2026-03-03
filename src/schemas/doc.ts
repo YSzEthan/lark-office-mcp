@@ -171,6 +171,23 @@ export const DocSearchBlocksSchema = DocumentIdSchema.extend({
 }).strict();
 
 /**
+ * 批次更新區塊
+ */
+export const DocBatchUpdateBlocksSchema = DocumentIdSchema.extend({
+  requests: z
+    .array(z.object({
+      block_id: z.string().min(1).describe("Block ID to update (get from doc_read)"),
+      update_text_elements: z.object({
+        elements: z.array(z.record(z.unknown())).min(1)
+          .describe('Text elements array, e.g. [{"text_run":{"content":"Hello"}}]'),
+      }).describe("Text elements update payload"),
+    }).strict())
+    .min(1)
+    .max(100)
+    .describe("Array of block update requests (max 100)"),
+}).strict();
+
+/**
  * 列出雲端硬碟檔案
  */
 export const DriveListSchema = z.object({
@@ -252,5 +269,6 @@ export type DocInsertBlocksInput = z.infer<typeof DocInsertBlocksSchema>;
 export type DocDeleteBlocksInput = z.infer<typeof DocDeleteBlocksSchema>;
 export type DocMoveBlocksInput = z.infer<typeof DocMoveBlocksSchema>;
 export type DocSearchBlocksInput = z.infer<typeof DocSearchBlocksSchema>;
+export type DocBatchUpdateBlocksInput = z.infer<typeof DocBatchUpdateBlocksSchema>;
 export type DriveListInput = z.infer<typeof DriveListSchema>;
 export type DriveRecentInput = z.infer<typeof DriveRecentSchema>;

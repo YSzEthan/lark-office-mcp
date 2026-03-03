@@ -630,6 +630,29 @@ export async function insertBlocks(
 }
 
 /**
+ * 批次更新多個 blocks 的內容
+ * 使用文件級 Rate Limiter 避免同一文件的並發編輯衝突
+ */
+export async function batchUpdateBlocks(
+  documentId: string,
+  requests: Array<{
+    block_id: string;
+    update_text_elements: { elements: Array<Record<string, unknown>> };
+  }>
+): Promise<void> {
+  await documentRateLimiter.throttle(documentId, () =>
+    larkRequest(`/docx/v1/documents/${documentId}/blocks/batch_update`, {
+      method: "PATCH",
+      body: {
+        requests,
+        document_revision_id: -1,
+      },
+      skipRateLimit: true,
+    })
+  );
+}
+
+/**
  * 建立新文件
  */
 export async function createDocument(
