@@ -1200,7 +1200,7 @@ Don't use when:
 
         // 負責人
         if (members && members.length > 0) {
-          body.members = members.map((id) => ({ id, type: "user" }));
+          body.members = members.map((id) => ({ id, type: "user", role: "assignee" }));
         }
 
         // 開始時間
