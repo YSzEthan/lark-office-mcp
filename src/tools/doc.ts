@@ -968,7 +968,7 @@ Don't use when:
         const files = data.files || [];
 
         if (files.length === 0) {
-          return success("Folder is empty");
+          return paginatedResponse([], false, offset || 0, "Folder is empty", response_format);
         }
 
         const simplified = files.map((f) => ({
@@ -1080,7 +1080,7 @@ Don't use when:
           }
         }
 
-        return success("No recent files found or API not available");
+        return paginatedResponse([], false, offset || 0, "No recent files found or API not available", response_format);
       } catch (err) {
         return error("Drive recent failed", err);
       }
