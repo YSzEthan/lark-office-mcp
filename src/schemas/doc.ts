@@ -3,7 +3,7 @@
  */
 
 import { z } from "zod";
-import { ListPaginationSchema, SearchPaginationSchema, ResponseFormatSchema, PaginationOutputFields } from "./common.js";
+import { ListPaginationSchema, SearchPaginationSchema, ResponseFormatSchema, PaginationOutputFields, coerceNumber, coerceArray, coerceBoolean } from "./common.js";
 
 /**
  * Document ID 參數
@@ -28,8 +28,7 @@ export const DocCreateSchema = z.object({
     .min(1)
     .max(200)
     .describe("Document title"),
-  blocks: z
-    .array(z.record(z.unknown()))
+  blocks: coerceArray(z.record(z.unknown()))
     .optional()
     .describe("Initial content as Lark Block JSON array (optional)"),
 }).merge(ResponseFormatSchema).strict();
@@ -43,8 +42,7 @@ export const DocReadSchema = DocumentIdSchema.strict();
  * Blocks 轉 Markdown
  */
 export const BlocksToMarkdownSchema = z.object({
-  blocks: z
-    .array(z.record(z.unknown()))
+  blocks: coerceArray(z.record(z.unknown()))
     .describe("Lark blocks array from wiki_read or doc_read"),
 }).strict();
 
@@ -52,20 +50,15 @@ export const BlocksToMarkdownSchema = z.object({
  * 更新文件 (支援範圍更新)
  */
 export const DocUpdateSchema = DocumentIdSchema.extend({
-  blocks: z
-    .array(z.record(z.unknown()))
-    .min(1)
+  blocks: coerceArray(z.record(z.unknown()))
+    .pipe(z.array(z.record(z.unknown())).min(1))
     .describe("Lark Block JSON array"),
-  start_index: z
-    .number()
-    .int()
-    .min(0)
+  start_index: coerceNumber
+    .pipe(z.number().int().min(0))
     .optional()
     .describe("Start index for range update (optional, must use with end_index)"),
-  end_index: z
-    .number()
-    .int()
-    .min(1)
+  end_index: coerceNumber
+    .pipe(z.number().int().min(1))
     .optional()
     .describe("End index for range update (exclusive, optional)"),
 }).strict();
@@ -79,9 +72,8 @@ export const DocDeleteSchema = DocumentIdSchema.strict();
  * 文件內容操作 (prepend, append)
  */
 export const DocContentSchema = DocumentIdSchema.extend({
-  blocks: z
-    .array(z.record(z.unknown()))
-    .min(1)
+  blocks: coerceArray(z.record(z.unknown()))
+    .pipe(z.array(z.record(z.unknown())).min(1))
     .describe("Lark Block JSON array"),
 }).strict();
 
@@ -107,14 +99,11 @@ export const DocMoveSchema = z.object({
  * 插入區塊
  */
 export const DocInsertBlocksSchema = DocumentIdSchema.extend({
-  blocks: z
-    .array(z.record(z.unknown()))
-    .min(1)
+  blocks: coerceArray(z.record(z.unknown()))
+    .pipe(z.array(z.record(z.unknown())).min(1))
     .describe("Lark Block JSON array"),
-  index: z
-    .number()
-    .int()
-    .min(0)
+  index: coerceNumber
+    .pipe(z.number().int().min(0))
     .default(0)
     .describe("Insert position index (0-based, default: 0)"),
 }).strict();
@@ -123,15 +112,11 @@ export const DocInsertBlocksSchema = DocumentIdSchema.extend({
  * 刪除區塊
  */
 export const DocDeleteBlocksSchema = DocumentIdSchema.extend({
-  start_index: z
-    .number()
-    .int()
-    .min(0)
+  start_index: coerceNumber
+    .pipe(z.number().int().min(0))
     .describe("Start index (0-based, required)"),
-  end_index: z
-    .number()
-    .int()
-    .min(1)
+  end_index: coerceNumber
+    .pipe(z.number().int().min(1))
     .describe("End index (exclusive, required)"),
 }).strict();
 
@@ -139,20 +124,14 @@ export const DocDeleteBlocksSchema = DocumentIdSchema.extend({
  * 移動區塊
  */
 export const DocMoveBlocksSchema = DocumentIdSchema.extend({
-  start_index: z
-    .number()
-    .int()
-    .min(0)
+  start_index: coerceNumber
+    .pipe(z.number().int().min(0))
     .describe("Start index of blocks to move (0-based, required)"),
-  end_index: z
-    .number()
-    .int()
-    .min(1)
+  end_index: coerceNumber
+    .pipe(z.number().int().min(1))
     .describe("End index of blocks to move (exclusive, required)"),
-  target_index: z
-    .number()
-    .int()
-    .min(0)
+  target_index: coerceNumber
+    .pipe(z.number().int().min(0))
     .describe("Target position to move blocks to (0-based, required)"),
 }).strict();
 
@@ -164,8 +143,7 @@ export const DocSearchBlocksSchema = DocumentIdSchema.extend({
     .string()
     .min(1)
     .describe("Keyword to search (required)"),
-  case_sensitive: z
-    .boolean()
+  case_sensitive: coerceBoolean
     .default(false)
     .describe("Case sensitive search (default: false)"),
 }).strict();
@@ -174,16 +152,14 @@ export const DocSearchBlocksSchema = DocumentIdSchema.extend({
  * 批次更新區塊
  */
 export const DocBatchUpdateBlocksSchema = DocumentIdSchema.extend({
-  requests: z
-    .array(z.object({
+  requests: coerceArray(z.object({
       block_id: z.string().min(1).describe("Block ID to update (get from doc_read)"),
       update_text_elements: z.object({
         elements: z.array(z.record(z.unknown())).min(1)
           .describe('Text elements array, e.g. [{"text_run":{"content":"Hello"}}]'),
       }).describe("Text elements update payload"),
     }).strict())
-    .min(1)
-    .max(100)
+    .pipe(z.array(z.any()).min(1).max(100))
     .describe("Array of block update requests (max 100)"),
 }).strict();
 

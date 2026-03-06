@@ -3,7 +3,7 @@
  */
 
 import { z } from "zod";
-import { ListPaginationSchema, SearchPaginationSchema, ResponseFormatSchema, PaginationOutputFields } from "./common.js";
+import { ListPaginationSchema, SearchPaginationSchema, ResponseFormatSchema, PaginationOutputFields, coerceNumber, coerceArray } from "./common.js";
 
 /**
  * Wiki Token 參數
@@ -24,9 +24,8 @@ export const WikiReadSchema = WikiTokenSchema.strict();
  * Wiki 內容操作 (prepend, append, update)
  */
 export const WikiContentSchema = WikiTokenSchema.extend({
-  blocks: z
-    .array(z.record(z.unknown()))
-    .min(1)
+  blocks: coerceArray(z.record(z.unknown()))
+    .pipe(z.array(z.record(z.unknown())).min(1))
     .describe("Lark Block JSON array"),
 }).strict();
 
@@ -34,16 +33,12 @@ export const WikiContentSchema = WikiTokenSchema.extend({
  * Wiki 更新 (支援範圍更新)
  */
 export const WikiUpdateSchema = WikiContentSchema.extend({
-  start_index: z
-    .number()
-    .int()
-    .min(0)
+  start_index: coerceNumber
+    .pipe(z.number().int().min(0))
     .optional()
     .describe("Start index for range update (optional, must use with end_index)"),
-  end_index: z
-    .number()
-    .int()
-    .min(1)
+  end_index: coerceNumber
+    .pipe(z.number().int().min(1))
     .optional()
     .describe("End index for range update (exclusive, optional)"),
 }).strict();
@@ -52,10 +47,8 @@ export const WikiUpdateSchema = WikiContentSchema.extend({
  * Wiki 插入區塊
  */
 export const WikiInsertBlocksSchema = WikiContentSchema.extend({
-  index: z
-    .number()
-    .int()
-    .min(0)
+  index: coerceNumber
+    .pipe(z.number().int().min(0))
     .default(0)
     .describe("Insert position index (0-based, default: 0)"),
 }).strict();
@@ -64,15 +57,11 @@ export const WikiInsertBlocksSchema = WikiContentSchema.extend({
  * Wiki 刪除區塊
  */
 export const WikiDeleteBlocksSchema = WikiTokenSchema.extend({
-  start_index: z
-    .number()
-    .int()
-    .min(0)
+  start_index: coerceNumber
+    .pipe(z.number().int().min(0))
     .describe("Start index (0-based, required)"),
-  end_index: z
-    .number()
-    .int()
-    .min(1)
+  end_index: coerceNumber
+    .pipe(z.number().int().min(1))
     .describe("End index (exclusive, required)"),
 }).strict();
 

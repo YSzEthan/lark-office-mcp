@@ -3,7 +3,7 @@
  */
 
 import { z } from "zod";
-import { ListPaginationSchema, SearchPaginationSchema, ResponseFormatSchema, PaginationOutputFields } from "./common.js";
+import { ListPaginationSchema, SearchPaginationSchema, ResponseFormatSchema, PaginationOutputFields, coerceNumber, coerceArray, coerceBoolean } from "./common.js";
 
 /**
  * Task ID 參數
@@ -49,8 +49,7 @@ export const TodoCreateSchema = z.object({
  * 列出待辦事項
  */
 export const TodoListSchema = z.object({
-  completed: z
-    .boolean()
+  completed: coerceBoolean
     .default(false)
     .describe("List only completed tasks (default: false)"),
 }).merge(ListPaginationSchema).merge(ResponseFormatSchema).strict();
@@ -63,8 +62,7 @@ export const TodoSearchSchema = z.object({
     .string()
     .min(1)
     .describe("Search keyword (required)"),
-  completed: z
-    .boolean()
+  completed: coerceBoolean
     .optional()
     .describe("Search only completed tasks"),
 }).merge(SearchPaginationSchema).merge(ResponseFormatSchema).strict();
@@ -103,9 +101,8 @@ export const TodoUpdateSchema = TaskIdSchema.extend({
  * 新增任務負責人
  */
 export const TodoAddMembersSchema = TaskIdSchema.extend({
-  members: z
-    .array(z.string())
-    .min(1)
+  members: coerceArray(z.string())
+    .pipe(z.array(z.string()).min(1))
     .describe("User IDs to add (open_id or user_id)"),
 }).strict();
 
@@ -113,9 +110,8 @@ export const TodoAddMembersSchema = TaskIdSchema.extend({
  * 移除任務負責人
  */
 export const TodoRemoveMembersSchema = TaskIdSchema.extend({
-  members: z
-    .array(z.string())
-    .min(1)
+  members: coerceArray(z.string())
+    .pipe(z.array(z.string()).min(1))
     .describe("User IDs to remove (open_id or user_id)"),
 }).strict();
 
@@ -201,8 +197,7 @@ export const SubtaskCreateSchema = SubtaskParentSchema.extend({
     .min(1)
     .max(500)
     .describe("Subtask summary (required)"),
-  members: z
-    .array(z.string())
+  members: coerceArray(z.string())
     .optional()
     .describe("Assignee user IDs (open_id or user_id)"),
   start_time: z
@@ -230,8 +225,7 @@ export const SubtaskUpdateSchema = TaskIdSchema.extend({
     .max(500)
     .optional()
     .describe("New subtask summary"),
-  members: z
-    .array(z.string())
+  members: coerceArray(z.string())
     .optional()
     .describe("New assignee user IDs (open_id or user_id)"),
   start_time: z
@@ -266,11 +260,8 @@ export const SectionListSchema = z.object({
     .string()
     .optional()
     .describe("Tasklist GUID (required when resource_type is 'tasklist')"),
-  limit: z
-    .number()
-    .int()
-    .min(1)
-    .max(100)
+  limit: coerceNumber
+    .pipe(z.number().int().min(1).max(100))
     .default(50)
     .describe("Max results (default: 50)"),
 }).merge(ResponseFormatSchema).strict();
@@ -279,15 +270,11 @@ export const SectionListSchema = z.object({
  * 列出 Section 中的任務
  */
 export const SectionTasksSchema = SectionGuidSchema.extend({
-  completed: z
-    .boolean()
+  completed: coerceBoolean
     .optional()
     .describe("Filter by completion status"),
-  limit: z
-    .number()
-    .int()
-    .min(1)
-    .max(100)
+  limit: coerceNumber
+    .pipe(z.number().int().min(1).max(100))
     .default(50)
     .describe("Max results (default: 50)"),
 }).merge(ResponseFormatSchema).strict();
