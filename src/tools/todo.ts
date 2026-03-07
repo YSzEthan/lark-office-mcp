@@ -283,7 +283,7 @@ Don't use when:
         );
 
         if (filtered.length === 0) {
-          return success(`Search "${query}" returned no results`);
+          return paginatedResponse([], false, offset || 0, `Search "${query}" returned no results`, response_format);
         }
 
         const simplified = simplifyTodoList(filtered);
@@ -1100,7 +1100,7 @@ Don't use when:
         const taskIds = (listData.items || []).map((t) => t.guid).filter(Boolean) as string[];
 
         if (taskIds.length === 0) {
-          return success("No tasks in tasklist", []);
+          return paginatedResponse([], false, 0, "No tasks in tasklist", response_format);
         }
 
         // 取得每個任務的詳細資訊
