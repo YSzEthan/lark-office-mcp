@@ -2,6 +2,29 @@
 
 Lark (飛書) MCP Server - 讓 Claude 直接操作 Lark 文件、Wiki、待辦事項。
 
+## 最近更新 (v3.30.0)
+
+**MCP String Coercion Helpers** — 解決 Claude Code 透過 MCP protocol 呼叫工具時，所有參數值皆為 string 導致 Zod strict schema 驗證失敗（`Expected array, received string` 等）的問題。
+
+**修改內容：**
+
+- `common.ts`：新增 `coerceNumber`、`coerceBoolean`、`coerceArray(itemSchema)` 三個 preprocess helpers，`ListPaginationSchema` / `SearchPaginationSchema` 的 `limit`、`offset` 改用 `coerceNumber`
+- `doc.ts`：`blocks` → `coerceArray()`、`start_index` / `end_index` / `target_index` / `index` → `coerceNumber.pipe()`、`case_sensitive` → `coerceBoolean`
+- `wiki.ts`：`blocks` → `coerceArray()`、`start_index` / `end_index` / `index` → `coerceNumber.pipe()`
+- `todo.ts`：`members` → `coerceArray(z.string())`、`completed` → `coerceBoolean`、`limit`（SectionList / SectionTasks）→ `coerceNumber.pipe()`
+
+**統一空結果 paginatedResponse** — 列表/搜尋工具在空結果時回傳一致的分頁格式，不再因無資料而拋出異常。
+
+**使用重點：**
+
+- 呼叫端傳入 `"3"` 或 `3` 皆可，Schema 自動轉為正確型別
+- array 參數可傳 JSON string（如 `"[{\"block_type\":2}]"`）或原生 array，兩者皆接受
+- boolean 參數接受 `"true"` / `"false"` string 或原生 `true` / `false`
+- 轉型失敗時仍會拋出原始 Zod validation error，不會靜默吞錯
+- 僅影響 input schema，output schema 不變
+
+---
+
 ## 基本資訊
 
 | 項目 | 值 |
