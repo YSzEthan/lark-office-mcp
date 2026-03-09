@@ -176,7 +176,11 @@ export const TasklistRemoveTaskSchema = TasklistIdSchema.merge(TaskIdSchema).str
 /**
  * 列出任務清單中的待辦
  */
-export const TasklistTasksSchema = TasklistIdSchema.merge(ListPaginationSchema).merge(ResponseFormatSchema).strict();
+export const TasklistTasksSchema = TasklistIdSchema.extend({
+  completed: coerceBoolean
+    .optional()
+    .describe("Filter by completion status"),
+}).merge(ListPaginationSchema).merge(ResponseFormatSchema).strict();
 
 /**
  * 子任務父任務 ID 參數

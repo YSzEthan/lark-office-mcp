@@ -1048,6 +1048,7 @@ Don't use when:
 
 Args:
   - tasklist_id (string): 清單 ID（必填）
+  - completed (boolean, optional): 過濾完成狀態
   - limit (number, optional): 最大結果數，預設 20
   - response_format (string, optional): 輸出格式
 
@@ -1088,13 +1089,18 @@ Don't use when:
     },
     async (params) => {
       try {
-        const { tasklist_id, limit, offset, response_format } = params;
+        const { tasklist_id, completed, limit, offset, response_format } = params;
 
         // 先取得任務 ID 列表
+        const reqParams: Record<string, string | number | boolean> = { page_size: limit };
+        if (completed !== undefined) {
+          reqParams.completed = completed;
+        }
+
         const listData = await larkRequest<{
           items?: Array<{ guid?: string }>;
         }>(`/task/v2/tasklists/${tasklist_id}/tasks`, {
-          params: { page_size: limit },
+          params: reqParams,
         });
 
         const taskIds = (listData.items || []).map((t) => t.guid).filter(Boolean) as string[];
