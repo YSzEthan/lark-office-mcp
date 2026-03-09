@@ -2,16 +2,14 @@
 
 Lark (飛書) MCP Server - 讓 Claude 直接操作 Lark 文件、Wiki、待辦事項。
 
-## 最近更新 (v3.30.0)
+## 最近更新 (v3.31.0)
 
-**MCP String Coercion Helpers** — 解決 Claude Code 透過 MCP protocol 呼叫工具時，所有參數值皆為 string 導致 Zod strict schema 驗證失敗（`Expected array, received string` 等）的問題。
+**RateLimiter 改為 queue-based** — 修復 `tasklist_tasks` 大量任務時約 30% 回傳 `(failed to fetch)` 的問題。根因是 `Promise.all()` 並發呼叫時，timestamp-based throttle 無法正確序列化請求，導致同時送出大量請求觸發 Lark 3 QPS 限流。
 
 **修改內容：**
 
-- `common.ts`：新增 `coerceNumber`、`coerceBoolean`、`coerceArray(itemSchema)` 三個 preprocess helpers，`ListPaginationSchema` / `SearchPaginationSchema` 的 `limit`、`offset` 改用 `coerceNumber`
-- `doc.ts`：`blocks` → `coerceArray()`、`start_index` / `end_index` / `target_index` / `index` → `coerceNumber.pipe()`、`case_sensitive` → `coerceBoolean`
-- `wiki.ts`：`blocks` → `coerceArray()`、`start_index` / `end_index` / `index` → `coerceNumber.pipe()`
-- `todo.ts`：`members` → `coerceArray(z.string())`、`completed` → `coerceBoolean`、`limit`（SectionList / SectionTasks）→ `coerceNumber.pipe()`
+- `rate-limiter.ts`：`RateLimiter` 從 timestamp-based 改為 promise-chain-based，並發呼叫自動排隊依序執行
+- `constants.ts`：`RATE_LIMIT_INTERVAL_MS` 350 → 340ms（start-to-start 間隔，≈2.94 QPS）
 
 **統一空結果 paginatedResponse** — 列表/搜尋工具在空結果時回傳一致的分頁格式，不再因無資料而拋出異常。
 
@@ -733,6 +731,13 @@ Error: API request failed
 ---
 
 ## 更新日誌
+
+### v3.31.0
+
+**RateLimiter 改為 queue-based** — 修復 `tasklist_tasks` 大量任務時約 30% 回傳 `(failed to fetch)` 的問題。
+
+- `rate-limiter.ts`：`RateLimiter` 從 timestamp-based 改為 promise-chain-based，並發呼叫自動排隊依序執行
+- `constants.ts`：`RATE_LIMIT_INTERVAL_MS` 350 → 340ms
 
 ### v3.30.0
 

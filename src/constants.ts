@@ -18,7 +18,7 @@ export const BATCH_SIZE = 10;
 
 // Rate Limiting（基於官方文件：單一應用 QPS 3 次/秒）
 export const RATE_LIMIT_QPS = 3;
-export const RATE_LIMIT_INTERVAL_MS = 350; // 略高於 1000/3 以確保安全
+export const RATE_LIMIT_INTERVAL_MS = 340; // 略高於 1000/3 (333ms) 以確保安全
 
 // Retry Configuration
 export const RETRY_MAX_ATTEMPTS = 3;

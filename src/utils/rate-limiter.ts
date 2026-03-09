@@ -9,11 +9,11 @@
 import { RATE_LIMIT_INTERVAL_MS } from "../constants.js";
 
 /**
- * 基礎 Rate Limiter
- * 使用簡單的時間間隔控制來限制請求頻率
+ * 基礎 Rate Limiter（queue-based）
+ * 使用 promise chain 確保並發呼叫被正確序列化，避免多個 caller 同時通過限流
  */
 export class RateLimiter {
-  private lastRequestTime = 0;
+  private tail: Promise<void> = Promise.resolve();
   private minInterval: number;
 
   constructor(minInterval = RATE_LIMIT_INTERVAL_MS) {
@@ -21,19 +21,24 @@ export class RateLimiter {
   }
 
   /**
-   * 在執行請求前等待必要的時間間隔
+   * 將請求排入 queue，確保每次請求間隔至少 minInterval ms（start-to-start）
    */
   async throttle<T>(fn: () => Promise<T>): Promise<T> {
-    const now = Date.now();
-    const elapsed = now - this.lastRequestTime;
-    const wait = Math.max(0, this.minInterval - elapsed);
-
-    if (wait > 0) {
-      await new Promise((resolve) => setTimeout(resolve, wait));
-    }
-
-    this.lastRequestTime = Date.now();
-    return fn();
+    return new Promise<T>((resolve, reject) => {
+      this.tail = this.tail.then(async () => {
+        const start = Date.now();
+        try {
+          resolve(await fn());
+        } catch (e) {
+          reject(e);
+        }
+        const elapsed = Date.now() - start;
+        const remaining = Math.max(0, this.minInterval - elapsed);
+        if (remaining > 0) {
+          await new Promise((r) => setTimeout(r, remaining));
+        }
+      });
+    });
   }
 }
 
