@@ -149,6 +149,14 @@ export const DocSearchBlocksSchema = DocumentIdSchema.extend({
 }).strict();
 
 /**
+ * 區塊縮排/取消縮排
+ */
+export const DocIndentBlockSchema = DocumentIdSchema.extend({
+  block_id: z.string().min(1).describe("Block ID to indent/outdent (get from doc_read)"),
+  direction: z.enum(["indent", "outdent"]).describe("indent: move under preceding sibling; outdent: move to grandparent level"),
+}).strict();
+
+/**
  * 批次更新區塊
  */
 export const DocBatchUpdateBlocksSchema = DocumentIdSchema.extend({
@@ -245,6 +253,7 @@ export type DocInsertBlocksInput = z.infer<typeof DocInsertBlocksSchema>;
 export type DocDeleteBlocksInput = z.infer<typeof DocDeleteBlocksSchema>;
 export type DocMoveBlocksInput = z.infer<typeof DocMoveBlocksSchema>;
 export type DocSearchBlocksInput = z.infer<typeof DocSearchBlocksSchema>;
+export type DocIndentBlockInput = z.infer<typeof DocIndentBlockSchema>;
 export type DocBatchUpdateBlocksInput = z.infer<typeof DocBatchUpdateBlocksSchema>;
 export type DriveListInput = z.infer<typeof DriveListSchema>;
 export type DriveRecentInput = z.infer<typeof DriveRecentSchema>;

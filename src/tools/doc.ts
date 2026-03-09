@@ -15,6 +15,7 @@ import {
   DocMoveBlocksSchema,
   DocSearchBlocksSchema,
   DocBatchUpdateBlocksSchema,
+  DocIndentBlockSchema,
   DriveListSchema,
   DriveRecentSchema,
   BlocksToMarkdownSchema,
@@ -32,6 +33,7 @@ import {
   getDocumentBlocks,
   getDocumentRootBlockId,
   insertBlocks,
+  insertSingleBlock,
   batchUpdateBlocks,
   larkRequest,
 } from "../services/lark-client.js";
@@ -894,6 +896,177 @@ Don't use when:
         );
       } catch (err) {
         return error("Batch update blocks failed", err);
+      }
+    }
+  );
+
+  // doc_indent_block
+  server.registerTool(
+    "doc_indent_block",
+    {
+      title: "Indent/Outdent Document Block",
+      description: `調整文件區塊的縮排層級。indent 將 block 移到前一個 sibling 底下；outdent 將 block 提升到 grandparent 層級。
+
+Args:
+  - document_id (string): 文件 ID（必填）
+  - block_id (string): 要縮排的 Block ID（必填，從 doc_read 取得）
+  - direction (string): "indent" 或 "outdent"（必填）
+
+Returns:
+  {
+    "document_id": string,  // 文件 ID
+    "url": string           // 文件 URL
+  }
+
+Examples:
+  - 縮排: doc_indent_block document_id=doccnXXXXX block_id=blkXXXXX direction="indent"
+  - 取消縮排: doc_indent_block document_id=doccnXXXXX block_id=blkXXXXX direction="outdent"
+
+Permissions:
+  - drive:drive
+
+Error handling:
+  - 99991663/99991664: Token invalid → use lark_auth_url to re-authorize
+  - 99991668: Permission denied → check App scope settings
+  - 99991400: Rate limited → wait and retry (auto-retry enabled)
+
+Don't use when:
+  - You need to move blocks to a different position (use doc_move_blocks instead)
+  - You need to move blocks between documents`,
+      inputSchema: DocIndentBlockSchema,
+      outputSchema: DocUrlOutputSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async (params) => {
+      try {
+        const { document_id, block_id, direction } = params;
+        const allBlocks = await getDocumentBlocks(document_id);
+
+        // 建 Map<block_id, LarkBlock>
+        const blockMap = new Map<string, LarkBlock>();
+        for (const b of allBlocks) {
+          blockMap.set(b.block_id, b);
+        }
+
+        const target = blockMap.get(block_id);
+        if (!target) {
+          return error(`Block ${block_id} not found`);
+        }
+
+        const parentId = target.parent_id;
+        if (!parentId) {
+          return error(`Block ${block_id} has no parent`);
+        }
+
+        const parent = blockMap.get(parentId);
+        if (!parent) {
+          return error(`Parent block ${parentId} not found`);
+        }
+
+        const parentChildren = parent.children || [];
+        const targetIndex = parentChildren.indexOf(block_id);
+        if (targetIndex === -1) {
+          return error(`Block ${block_id} not found in parent's children`);
+        }
+
+        // Strip block metadata for re-insertion
+        function stripBlockMeta(block: LarkBlock): Record<string, unknown> {
+          const { block_id: _id, parent_id: _pid, children: _ch, ...content } = block as unknown as Record<string, unknown>;
+          return content;
+        }
+
+        // 遞迴收集 block tree
+        interface BlockTree {
+          content: Record<string, unknown>;
+          childTrees: BlockTree[];
+        }
+
+        function collectBlockTree(bid: string): BlockTree {
+          const block = blockMap.get(bid)!;
+          const content = stripBlockMeta(block);
+          const childTrees = (block.children || [])
+            .map(id => blockMap.get(id))
+            .filter((b): b is LarkBlock => !!b)
+            .map(child => collectBlockTree(child.block_id));
+          return { content, childTrees };
+        }
+
+        // 遞迴插入 block tree
+        async function insertBlockTree(
+          parentBlockId: string,
+          tree: BlockTree,
+          index: number
+        ): Promise<void> {
+          const newBlockId = await insertSingleBlock(document_id, parentBlockId, tree.content, index);
+          for (let i = 0; i < tree.childTrees.length; i++) {
+            await insertBlockTree(newBlockId, tree.childTrees[i], i);
+          }
+        }
+
+        // 驗證目標位置並計算插入參數
+        let insertParentId: string;
+        let insertIndex: number;
+
+        if (direction === "indent") {
+          if (targetIndex === 0) {
+            return error("Cannot indent: no preceding sibling to move under");
+          }
+
+          const newParentId = parentChildren[targetIndex - 1];
+          const newParent = blockMap.get(newParentId);
+          if (!newParent) {
+            return error(`Preceding sibling block ${newParentId} not found`);
+          }
+
+          insertParentId = newParentId;
+          insertIndex = (newParent.children || []).length;
+        } else {
+          const grandparentId = parent.parent_id;
+          if (!grandparentId) {
+            return error("Cannot outdent: parent has no grandparent (already at top level)");
+          }
+
+          const grandparent = blockMap.get(grandparentId);
+          if (!grandparent) {
+            return error(`Grandparent block ${grandparentId} not found`);
+          }
+
+          const grandparentChildren = grandparent.children || [];
+          const parentIndex = grandparentChildren.indexOf(parentId);
+          if (parentIndex === -1) {
+            return error(`Parent ${parentId} not found in grandparent's children`);
+          }
+
+          insertParentId = grandparentId;
+          insertIndex = parentIndex + 1;
+        }
+
+        // 收集 → 刪除 → 插入
+        const tree = collectBlockTree(block_id);
+
+        await larkRequest(`/docx/v1/documents/${document_id}/blocks/${parentId}/children/batch_delete`, {
+          method: "DELETE",
+          body: {
+            document_revision_id: -1,
+            start_index: targetIndex,
+            end_index: targetIndex + 1,
+          },
+        });
+
+        await insertBlockTree(insertParentId, tree, insertIndex);
+
+        const action = direction === "indent" ? "indented under" : "outdented to";
+        return success(`Block ${action} ${insertParentId}`, {
+          document_id,
+          url: DOC_URL(document_id),
+        });
+      } catch (err) {
+        return error("Block indent/outdent failed", err);
       }
     }
   );

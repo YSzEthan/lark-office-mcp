@@ -576,6 +576,34 @@ async function insertTableBlock(
 }
 
 /**
+ * 插入單一 block 並回傳新的 block_id
+ */
+export async function insertSingleBlock(
+  documentId: string,
+  parentBlockId: string,
+  block: Record<string, unknown>,
+  index: number
+): Promise<string> {
+  const data = await documentRateLimiter.throttle(documentId, () =>
+    larkRequest<{ children?: Array<{ block_id?: string }> }>(
+      `/docx/v1/documents/${documentId}/blocks/${parentBlockId}/children`,
+      {
+        method: "POST",
+        body: {
+          children: [block],
+          index,
+          document_revision_id: -1,
+        },
+        skipRateLimit: true,
+      }
+    )
+  );
+  const newId = data.children?.[0]?.block_id;
+  if (!newId) throw new Error("Failed to get new block ID after insert");
+  return newId;
+}
+
+/**
  * 批量插入 blocks (帶自動分批)
  * 使用文件級 Rate Limiter 避免同一文件的並發編輯衝突
  * 支援表格 block 的三步驟插入流程
