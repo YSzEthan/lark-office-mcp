@@ -647,6 +647,14 @@ export async function insertBlocks(
       await flushNormalBatch();
       await insertTableBlock(documentId, parentBlockId, block, currentIndex);
       currentIndex += 1;
+    } else if (block._children) {
+      // 容器 block（Callout、Quote 等）：先 flush，建立父 block，再遞迴插入 children
+      await flushNormalBatch();
+      const children = block._children as Array<Record<string, unknown>>;
+      const { _children, ...cleanBlock } = block;
+      const newBlockId = await insertSingleBlock(documentId, parentBlockId, cleanBlock, currentIndex);
+      currentIndex += 1;
+      await insertBlocks(documentId, newBlockId, children, 0, batchSize);
     } else {
       // 一般 block：累積到批次
       normalBatch.push(block);

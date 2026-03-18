@@ -68,6 +68,9 @@ Returns:
 Examples:
   - 建立空文件: doc_create folder_token=fldcnXXXXX title="Meeting Notes"
   - 建立有內容的文件: doc_create folder_token=fldcnXXXXX title="Report" blocks=[{"block_type":3,"heading1":{"elements":[{"text_run":{"content":"Summary"}}]}}]
+  - 容器 block（Callout 等）用 _children 插入子內容: blocks=[{"block_type":19,"callout":{"background_color":2,"border_color":2,"emoji_id":"bulb"},"_children":[{"block_type":2,"text":{"elements":[{"text_run":{"content":"注意事項"}}]}}]}]
+
+Note: Lark API 不支援在 block payload 中內嵌 children。容器 block（Callout、Quote 等）需使用自訂 _children 欄位，系統會自動先建立父 block 再遞迴插入子 block。支援多層嵌套。
 
 Permissions:
   - drive:drive
@@ -320,7 +323,7 @@ Don't use when:
         const rootBlockId = await getDocumentRootBlockId(document_id);
         const isRangeUpdate = start_index !== undefined && end_index !== undefined;
 
-        const hasTable = blocks.some((b: Record<string, unknown>) => b._cellContents);
+        const hasNestedBlocks = blocks.some((b: Record<string, unknown>) => b._cellContents || b._children);
 
         if (isRangeUpdate) {
           if (start_index < 0 || end_index <= start_index) {
@@ -337,7 +340,7 @@ Don't use when:
           });
 
           // 表格需要等待文件狀態同步
-          if (hasTable) {
+          if (hasNestedBlocks) {
             await new Promise((resolve) => setTimeout(resolve, 100));
           }
 
@@ -364,7 +367,7 @@ Don't use when:
             });
 
             // 表格需要等待文件狀態同步
-            if (hasTable) {
+            if (hasNestedBlocks) {
               await new Promise((resolve) => setTimeout(resolve, 100));
             }
           }
@@ -524,6 +527,9 @@ Returns:
 Examples:
   - 在開頭插入: doc_insert_blocks document_id=doccnXXXXX blocks=[{"block_type":3,"heading1":{"elements":[{"text_run":{"content":"Title"}}]}}]
   - 在指定位置插入: doc_insert_blocks document_id=doccnXXXXX blocks=[{"block_type":2,"text":{"elements":[{"text_run":{"content":"New"}}]}}] index=5
+  - 插入容器 block: doc_insert_blocks document_id=doccnXXXXX blocks=[{"block_type":19,"callout":{"background_color":2,"border_color":2,"emoji_id":"bulb"},"_children":[{"block_type":2,"text":{"elements":[{"text_run":{"content":"內容"}}]}}]}]
+
+Note: 容器 block（Callout、Quote 等）使用 _children 欄位指定子 block，系統自動先建立父 block 再遞迴插入。支援多層嵌套。
 
 Permissions:
   - drive:drive
