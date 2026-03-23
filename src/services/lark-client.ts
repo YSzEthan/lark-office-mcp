@@ -3,11 +3,11 @@
  * 使用 User Access Token (OAuth 授權流程)
  */
 
-import { readFileSync, writeFileSync, existsSync } from "fs";
+import { readFileSync, writeFileSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
 import { exec } from "child_process";
-import { BASE_URL, CALLBACK_PORT, TOKEN_FILE_NAME, setLarkBaseUrl, BATCH_SIZE } from "../constants.js";
+import { BASE_URL, CALLBACK_PORT, TOKEN_FILE_NAME, setLarkBaseUrl, getLarkBaseUrl, BATCH_SIZE } from "../constants.js";
 import type { TokenData, LarkBlock } from "../types.js";
 import { LarkError } from "../utils/errors.js";
 import { startCallbackServer } from "../utils/oauth-callback.js";
@@ -57,16 +57,14 @@ export function getAuthorizationUrl(port: number = CALLBACK_PORT): string {
  */
 function loadTokenFromFile(): (TokenData & { baseUrl?: string }) | null {
   try {
-    if (existsSync(TOKEN_FILE)) {
-      const data = JSON.parse(readFileSync(TOKEN_FILE, "utf-8"));
-      // 恢復 baseUrl
-      if (data.baseUrl) {
-        setLarkBaseUrl(data.baseUrl);
-      }
-      return data;
+    const data = JSON.parse(readFileSync(TOKEN_FILE, "utf-8"));
+    // 恢復 baseUrl
+    if (data.baseUrl) {
+      setLarkBaseUrl(data.baseUrl);
     }
+    return data;
   } catch {
-    // 忽略錯誤
+    // 忽略錯誤（檔案不存在或 JSON parse 失敗）
   }
   return null;
 }
@@ -115,36 +113,6 @@ async function fetchUserTenantDomain(accessToken: string): Promise<string> {
       return `${url.protocol}//${url.host}`;
     }
 
-    // 嘗試從 Wiki 空間取得
-    const wikiResponse = await fetch(`${BASE_URL}/wiki/v2/spaces?page_size=1`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    const wikiData = await wikiResponse.json() as {
-      code: number;
-      data?: {
-        items?: Array<{ space_id?: string }>;
-      };
-    };
-
-    if (wikiData.data?.items?.[0]?.space_id) {
-      const spaceId = wikiData.data.items[0].space_id;
-      const nodesResponse = await fetch(`${BASE_URL}/wiki/v2/spaces/${spaceId}/nodes?page_size=1`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      const nodesData = await nodesResponse.json() as {
-        code: number;
-        data?: {
-          items?: Array<{ node_token?: string }>;
-        };
-      };
-
-      if (nodesData.data?.items?.[0]?.node_token) {
-        // 使用 node token 查詢取得 URL
-        const nodeToken = nodesData.data.items[0].node_token;
-        // Lark API 不直接提供 URL，需要用戶確認 domain
-      }
-    }
-
     // 預設使用 larksuite.com
     return "";
   } catch {
@@ -153,10 +121,9 @@ async function fetchUserTenantDomain(accessToken: string): Promise<string> {
 }
 
 /**
- * 用授權碼換取 Token
+ * 取得 App Access Token
  */
-export async function exchangeCodeForToken(code: string): Promise<TokenData & { baseUrl: string }> {
-  // 先取得 app_access_token
+async function getAppAccessToken(): Promise<string> {
   const appTokenRes = await fetch(`${BASE_URL}/auth/v3/app_access_token/internal`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -176,12 +143,21 @@ export async function exchangeCodeForToken(code: string): Promise<TokenData & { 
     throw new Error(`App Access Token failed: ${appTokenData.msg}`);
   }
 
+  return appTokenData.app_access_token;
+}
+
+/**
+ * 用授權碼換取 Token
+ */
+export async function exchangeCodeForToken(code: string): Promise<TokenData & { baseUrl: string }> {
+  const appAccessToken = await getAppAccessToken();
+
   // 用授權碼換取 user_access_token
   const response = await fetch(`${BASE_URL}/authen/v1/oidc/access_token`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${appTokenData.app_access_token}`,
+      Authorization: `Bearer ${appAccessToken}`,
     },
     body: JSON.stringify({
       grant_type: "authorization_code",
@@ -226,30 +202,13 @@ export async function exchangeCodeForToken(code: string): Promise<TokenData & { 
  * 用 Refresh Token 更新 Access Token
  */
 async function refreshAccessToken(refreshToken: string): Promise<TokenData> {
-  const appTokenRes = await fetch(`${BASE_URL}/auth/v3/app_access_token/internal`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      app_id: LARK_APP_ID,
-      app_secret: LARK_APP_SECRET,
-    }),
-  });
-
-  const appTokenData = await appTokenRes.json() as {
-    code: number;
-    msg: string;
-    app_access_token?: string;
-  };
-
-  if (appTokenData.code !== 0 || !appTokenData.app_access_token) {
-    throw new Error(`App Access Token failed: ${appTokenData.msg}`);
-  }
+  const appAccessToken = await getAppAccessToken();
 
   const response = await fetch(`${BASE_URL}/authen/v1/oidc/refresh_access_token`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${appTokenData.app_access_token}`,
+      Authorization: `Bearer ${appAccessToken}`,
     },
     body: JSON.stringify({
       grant_type: "refresh_token",
@@ -278,8 +237,7 @@ async function refreshAccessToken(refreshToken: string): Promise<TokenData> {
   };
 
   // 保留現有的 baseUrl
-  const existingData = loadTokenFromFile();
-  saveTokenToFile(token, existingData?.baseUrl);
+  saveTokenToFile(token, getLarkBaseUrl() || undefined);
   cachedToken = token;
 
   return token;
@@ -504,18 +462,27 @@ export async function getDocumentBlocks(
  * 取得文件根 block ID
  */
 export async function getDocumentRootBlockId(documentId: string): Promise<string> {
-  const data = await larkRequest<{
-    items: Array<{ block_id: string }>;
-  }>(`/docx/v1/documents/${documentId}/blocks`, {
-    params: { page_size: 1 },
+  // Lark docx API 的 root block ID 等於 document ID
+  return documentId;
+}
+
+/**
+ * 刪除文件中指定範圍的子 blocks
+ */
+export async function deleteBlockRange(
+  documentId: string,
+  parentBlockId: string,
+  startIndex: number,
+  endIndex: number
+): Promise<void> {
+  await larkRequest(`/docx/v1/documents/${documentId}/blocks/${parentBlockId}/children/batch_delete`, {
+    method: "DELETE",
+    body: {
+      document_revision_id: -1,
+      start_index: startIndex,
+      end_index: endIndex,
+    },
   });
-
-  const blockId = data.items?.[0]?.block_id;
-  if (!blockId) {
-    throw new Error("Cannot get document root block ID");
-  }
-
-  return blockId;
 }
 
 /**

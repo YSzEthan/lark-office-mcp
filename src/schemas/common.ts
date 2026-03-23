@@ -68,11 +68,6 @@ export const SearchPaginationSchema = z.object({
 });
 
 /**
- * 分頁參數 Schema（舊版相容，預設 20）
- */
-export const PaginationSchema = ListPaginationSchema;
-
-/**
  * 回應格式參數 Schema
  */
 export const ResponseFormatSchema = z.object({
@@ -104,7 +99,6 @@ export const PaginationOutputFields = {
 
 export type ListPaginationInput = z.infer<typeof ListPaginationSchema>;
 export type SearchPaginationInput = z.infer<typeof SearchPaginationSchema>;
-export type PaginationInput = z.infer<typeof PaginationSchema>;
 export type ResponseFormatInput = z.infer<typeof ResponseFormatSchema>;
 export type ListOptionsInput = z.infer<typeof ListOptionsSchema>;
 export type SearchOptionsInput = z.infer<typeof SearchOptionsSchema>;

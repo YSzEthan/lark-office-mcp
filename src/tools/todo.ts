@@ -107,7 +107,7 @@ Don't use when:
         if (description) body.description = description;
         if (due_time) {
           body.due = {
-            timestamp: new Date(due_time).getTime().toString(),
+            timestamp: Math.floor(new Date(due_time).getTime() / 1000).toString(),
             is_all_day: false,
           };
         }
@@ -1049,7 +1049,7 @@ Don't use when:
 Args:
   - tasklist_id (string): 清單 ID（必填）
   - completed (boolean, optional): 過濾完成狀態
-  - limit (number, optional): 最大結果數，預設 20
+  - limit (number, optional): 最大結果數，預設 10（每個任務需要額外 API 呼叫取得詳情，建議保持較小值）
   - response_format (string, optional): 輸出格式
 
 Returns:
@@ -1066,6 +1066,9 @@ Returns:
 
 Examples:
   - 列出任務: tasklist_tasks tasklist_id=7XXXXXX
+
+Performance note:
+  - 每個任務需要額外 API 呼叫取得詳情，limit 過大會導致回應時間顯著增加
 
 Permissions:
   - task:task

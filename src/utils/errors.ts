@@ -116,7 +116,7 @@ export class LarkError extends Error {
 /**
  * 取得錯誤資訊
  */
-export function getErrorInfo(code: number): { description: string; suggestion: string } {
+function getErrorInfo(code: number): { description: string; suggestion: string } {
   return (
     ERROR_INFO[code] || {
       description: "Unknown error",

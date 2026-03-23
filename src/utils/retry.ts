@@ -9,7 +9,7 @@ import { RETRY_MAX_ATTEMPTS, RETRY_BASE_DELAY_MS, RETRY_MAX_DELAY_MS } from "../
 /**
  * 重試選項
  */
-export interface RetryOptions {
+interface RetryOptions {
   /** 最大重試次數 */
   maxRetries: number;
   /** 基礎延遲時間（毫秒） */
@@ -56,52 +56,6 @@ function isRetryable(error: unknown): boolean {
     );
   }
   return false;
-}
-
-/**
- * 帶重試的非同步函數執行
- *
- * @param fn 要執行的非同步函數
- * @param options 重試選項
- * @returns 函數執行結果
- * @throws 最後一次失敗的錯誤
- */
-export async function withRetry<T>(
-  fn: () => Promise<T>,
-  options?: Partial<RetryOptions>
-): Promise<T> {
-  const opts = { ...DEFAULT_OPTIONS, ...options };
-  let lastError: Error | undefined;
-
-  for (let attempt = 0; attempt <= opts.maxRetries; attempt++) {
-    try {
-      return await fn();
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-
-      // 如果不可重試或已達最大重試次數，直接拋出
-      if (!isRetryable(error) || attempt === opts.maxRetries) {
-        throw lastError;
-      }
-
-      // 計算延遲時間
-      let delay = calculateDelay(attempt, opts.baseDelay, opts.maxDelay);
-
-      // Rate limit 錯誤使用更長的延遲
-      if (error instanceof LarkError && error.code === LarkErrorCode.RATE_LIMIT) {
-        delay = Math.max(delay, 2000); // 至少等待 2 秒
-      }
-
-      // 觸發重試回調
-      opts.onRetry?.(attempt + 1, lastError, delay);
-
-      // 等待後重試
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    }
-  }
-
-  // 這行不應該被執行到，但 TypeScript 需要它
-  throw lastError || new Error("Retry failed");
 }
 
 /**

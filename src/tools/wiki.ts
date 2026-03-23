@@ -26,6 +26,7 @@ import {
   getDocumentBlocks,
   getDocumentRootBlockId,
   insertBlocks,
+  deleteBlockRange,
   larkRequest,
 } from "../services/lark-client.js";
 import { blocksToMarkdown } from "../utils/markdown.js";
@@ -248,24 +249,17 @@ Don't use when:
         const rootBlockId = await getDocumentRootBlockId(node.objToken);
         const isRangeUpdate = start_index !== undefined && end_index !== undefined;
 
-        const hasTable = blocks.some((b: Record<string, unknown>) => b._cellContents);
+        const hasNestedBlocks = blocks.some((b: Record<string, unknown>) => b._cellContents || b._children);
 
         if (isRangeUpdate) {
           if (start_index < 0 || end_index <= start_index) {
             return error("Invalid range (end_index must be greater than start_index)");
           }
 
-          await larkRequest(`/docx/v1/documents/${node.objToken}/blocks/${rootBlockId}/children/batch_delete`, {
-            method: "DELETE",
-            body: {
-              document_revision_id: -1,
-              start_index,
-              end_index,
-            },
-          });
+          await deleteBlockRange(node.objToken, rootBlockId, start_index, end_index);
 
-          // 表格需要等待文件狀態同步
-          if (hasTable) {
+          // 表格/容器需要等待文件狀態同步
+          if (hasNestedBlocks) {
             await new Promise((resolve) => setTimeout(resolve, 100));
           }
 
@@ -282,17 +276,10 @@ Don't use when:
             .map((b) => b.block_id);
 
           if (childBlockIds.length > 0) {
-            await larkRequest(`/docx/v1/documents/${node.objToken}/blocks/${rootBlockId}/children/batch_delete`, {
-              method: "DELETE",
-              body: {
-                document_revision_id: -1,
-                start_index: 0,
-                end_index: childBlockIds.length,
-              },
-            });
+            await deleteBlockRange(node.objToken, rootBlockId, 0, childBlockIds.length);
 
-            // 表格需要等待文件狀態同步
-            if (hasTable) {
+            // 表格/容器需要等待文件狀態同步
+            if (hasNestedBlocks) {
               await new Promise((resolve) => setTimeout(resolve, 100));
             }
           }
@@ -417,14 +404,7 @@ Don't use when:
         const node = await getWikiNode(wiki_token);
         const rootBlockId = await getDocumentRootBlockId(node.objToken);
 
-        await larkRequest(`/docx/v1/documents/${node.objToken}/blocks/${rootBlockId}/children/batch_delete`, {
-          method: "DELETE",
-          body: {
-            document_revision_id: -1,
-            start_index,
-            end_index,
-          },
-        });
+        await deleteBlockRange(node.objToken, rootBlockId, start_index, end_index);
 
         return success(`Deleted ${end_index - start_index} blocks (index ${start_index} to ${end_index})`, {
           wiki_url: WIKI_URL(wiki_token),
@@ -817,9 +797,11 @@ Don't use when:
         // 遞迴搜尋函數（fallback 用）
         const maxDepth = 3;
         const maxFiles = 200;
+        const maxApiCalls = 50;
+        let apiCallCount = 0;
 
         async function searchFolderRecursive(folderToken?: string, depth = 0): Promise<FileItem[]> {
-          if (depth > maxDepth) return [];
+          if (depth > maxDepth || apiCallCount >= maxApiCalls) return [];
 
           const results: FileItem[] = [];
           const reqParams: Record<string, string | number> = { page_size: 50 };
@@ -828,11 +810,12 @@ Don't use when:
           }
 
           try {
+            apiCallCount++;
             const data = await larkRequest<{ files?: FileItem[] }>("/drive/v1/files", { params: reqParams });
             const files = data.files || [];
 
             for (const file of files) {
-              if (results.length >= maxFiles) break;
+              if (results.length >= maxFiles || apiCallCount >= maxApiCalls) break;
 
               if (file.type === "folder") {
                 const subFiles = await searchFolderRecursive(file.token, depth + 1);

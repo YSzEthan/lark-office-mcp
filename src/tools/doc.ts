@@ -35,10 +35,11 @@ import {
   insertBlocks,
   insertSingleBlock,
   batchUpdateBlocks,
+  deleteBlockRange,
   larkRequest,
 } from "../services/lark-client.js";
 import { blocksToMarkdown } from "../utils/markdown.js";
-import { success, error, simplifySearchResults, truncate, paginatedResponse } from "../utils/response.js";
+import { success, error, truncate, paginatedResponse } from "../utils/response.js";
 import type { LarkBlock } from "../types.js";
 import { DOC_URL } from "../constants.js";
 
@@ -330,14 +331,7 @@ Don't use when:
             return error("Invalid range (end_index must be greater than start_index)");
           }
 
-          await larkRequest(`/docx/v1/documents/${document_id}/blocks/${rootBlockId}/children/batch_delete`, {
-            method: "DELETE",
-            body: {
-              document_revision_id: -1,
-              start_index,
-              end_index,
-            },
-          });
+          await deleteBlockRange(document_id, rootBlockId, start_index, end_index);
 
           // 表格需要等待文件狀態同步
           if (hasNestedBlocks) {
@@ -357,14 +351,7 @@ Don't use when:
             .map((b) => b.block_id);
 
           if (childBlockIds.length > 0) {
-            await larkRequest(`/docx/v1/documents/${document_id}/blocks/${rootBlockId}/children/batch_delete`, {
-              method: "DELETE",
-              body: {
-                document_revision_id: -1,
-                start_index: 0,
-                end_index: childBlockIds.length,
-              },
-            });
+            await deleteBlockRange(document_id, rootBlockId, 0, childBlockIds.length);
 
             // 表格需要等待文件狀態同步
             if (hasNestedBlocks) {
@@ -618,14 +605,7 @@ Don't use when:
 
         const rootBlockId = await getDocumentRootBlockId(document_id);
 
-        await larkRequest(`/docx/v1/documents/${document_id}/blocks/${rootBlockId}/children/batch_delete`, {
-          method: "DELETE",
-          body: {
-            document_revision_id: -1,
-            start_index,
-            end_index,
-          },
-        });
+        await deleteBlockRange(document_id, rootBlockId, start_index, end_index);
 
         return success(`Deleted ${end_index - start_index} blocks (index ${start_index} to ${end_index})`, {
           document_id,
@@ -714,14 +694,7 @@ Don't use when:
         });
 
         // 1. 刪除原位置的 blocks
-        await larkRequest(`/docx/v1/documents/${document_id}/blocks/${rootBlockId}/children/batch_delete`, {
-          method: "DELETE",
-          body: {
-            document_revision_id: -1,
-            start_index,
-            end_index,
-          },
-        });
+        await deleteBlockRange(document_id, rootBlockId, start_index, end_index);
 
         // 2. 計算新的目標位置（因為刪除後索引會變化）
         let adjustedTargetIndex = target_index;
@@ -1055,14 +1028,7 @@ Don't use when:
         // 收集 → 刪除 → 插入
         const tree = collectBlockTree(block_id);
 
-        await larkRequest(`/docx/v1/documents/${document_id}/blocks/${parentId}/children/batch_delete`, {
-          method: "DELETE",
-          body: {
-            document_revision_id: -1,
-            start_index: targetIndex,
-            end_index: targetIndex + 1,
-          },
-        });
+        await deleteBlockRange(document_id, parentId, targetIndex, targetIndex + 1);
 
         await insertBlockTree(insertParentId, tree, insertIndex);
 
