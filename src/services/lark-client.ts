@@ -49,7 +49,7 @@ export function getAuthorizationUrl(port: number = CALLBACK_PORT): string {
   const redirectParam = encodeURIComponent(redirectUri);
   const scopeParam = encodeURIComponent(scopeStr);
 
-  return `https://open.larksuite.com/open-apis/authen/v1/authorize?app_id=${LARK_APP_ID}&redirect_uri=${redirectParam}&state=lark_mcp_auth&scope=${scopeParam}`;
+  return `https://open.larksuite.com/open-apis/authen/v1/authorize?app_id=${LARK_APP_ID}&redirect_uri=${redirectParam}&state=lark_mcp_auth&scope=${scopeParam}&app_lang=zh_TW`;
 }
 
 /**
