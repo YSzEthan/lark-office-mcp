@@ -181,7 +181,7 @@ export const TasklistTasksSchema = TasklistIdSchema.extend({
     .optional()
     .describe("Filter by completion status"),
   limit: coerceNumber
-    .pipe(z.number().int().min(1).max(50))
+    .pipe(z.number().int().min(1).max(200))
     .default(10)
     .describe("Max results (default: 10, each task requires an extra API call)"),
 }).merge(ListPaginationSchema.omit({ limit: true })).merge(ResponseFormatSchema).strict();

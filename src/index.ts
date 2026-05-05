@@ -13,6 +13,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
+import { setupLifecycle } from "./lifecycle.js";
 import { registerAuthTools } from "./tools/auth.js";
 import { registerWikiTools } from "./tools/wiki.js";
 import { registerDocTools } from "./tools/doc.js";
@@ -21,7 +22,7 @@ import { registerTodoTools } from "./tools/todo.js";
 // Create MCP server instance
 const server = new McpServer({
   name: "lark-mcp-server",
-  version: "3.35.0",
+  version: "3.36.0",
 });
 
 // Register all tools
@@ -34,7 +35,8 @@ registerTodoTools(server);
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("Lark MCP Server v3.35.0 started");
+  setupLifecycle(server);
+  console.error("Lark MCP Server v3.36.0 started");
 }
 
 main().catch((err) => {

@@ -11,7 +11,7 @@ export const CALLBACK_TIMEOUT_MS = 120_000;
 
 // 回應限制
 export const CHARACTER_LIMIT = 25000;
-export const MAX_PAGE_SIZE = 100;
+export const MAX_PAGE_SIZE = 200;
 
 // 批次處理
 export const BATCH_SIZE = 10;
