@@ -262,6 +262,7 @@ export async function autoReAuth(): Promise<TokenData> {
 
   // 用實際 port 產生 auth URL，再開瀏覽器
   const authUrl = getAuthorizationUrl(port);
+  console.error(`\n[Lark] 請打開以下網址完成授權：\n${authUrl}\n`);
   openBrowser(authUrl);
 
   const code = await codePromise;
