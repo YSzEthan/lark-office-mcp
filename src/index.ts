@@ -8,35 +8,30 @@
  * - Tasks: Manage todos and tasklists
  *
  * Uses User Access Token (OAuth 2.0) for authentication.
+ *
+ * Transports:
+ * - stdio (default)       — one process per Claude Code session
+ * - Streamable HTTP (--http) — one shared process for all sessions
  */
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
 import { setupLifecycle } from "./lifecycle.js";
-import { registerAuthTools } from "./tools/auth.js";
-import { registerWikiTools } from "./tools/wiki.js";
-import { registerDocTools } from "./tools/doc.js";
-import { registerTodoTools } from "./tools/todo.js";
+import { createServer, VERSION } from "./server.js";
 
-// Create MCP server instance
-const server = new McpServer({
-  name: "lark-mcp-server",
-  version: "3.36.1",
-});
-
-// Register all tools
-registerAuthTools(server);
-registerWikiTools(server);
-registerDocTools(server);
-registerTodoTools(server);
-
-// Start server
 async function main() {
+  if (process.argv.includes("--http")) {
+    const { startHttpServer } = await import("./http.js");
+    const close = await startHttpServer();
+    setupLifecycle(close, { watchParent: false });
+    return;
+  }
+
+  const server = createServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  setupLifecycle(server);
-  console.error("Lark MCP Server v3.36.1 started");
+  setupLifecycle(() => server.close());
+  console.error(`Lark MCP Server v${VERSION} started`);
 }
 
 main().catch((err) => {

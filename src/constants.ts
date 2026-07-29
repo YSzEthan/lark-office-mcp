@@ -9,6 +9,10 @@ export const BASE_URL = "https://open.larksuite.com/open-apis";
 export const CALLBACK_PORT = Number(process.env.LARK_CALLBACK_PORT) || 9876;
 export const CALLBACK_TIMEOUT_MS = 120_000;
 
+// Streamable HTTP 常駐模式監聽埠（不可與 CALLBACK_PORT 相同，
+// oauth-callback 會主動 kill 佔用 CALLBACK_PORT 的 process）
+export const HTTP_PORT = Number(process.env.LARK_MCP_PORT) || 3940;
+
 // 回應限制
 export const CHARACTER_LIMIT = 25000;
 export const MAX_PAGE_SIZE = 200;
