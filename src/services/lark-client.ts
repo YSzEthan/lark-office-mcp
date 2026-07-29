@@ -7,7 +7,7 @@ import { readFileSync, writeFileSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
 import { exec } from "child_process";
-import { BASE_URL, CALLBACK_PORT, TOKEN_FILE_NAME, setLarkBaseUrl, getLarkBaseUrl, BATCH_SIZE } from "../constants.js";
+import { BASE_URL, CALLBACK_PORT, TOKEN_FILE_NAME, setLarkBaseUrl, getLarkBaseUrl, BATCH_SIZE, REQUEST_TIMEOUT_MS } from "../constants.js";
 import type { TokenData, LarkBlock } from "../types.js";
 import { LarkError } from "../utils/errors.js";
 import { startCallbackServer } from "../utils/oauth-callback.js";
@@ -87,6 +87,7 @@ async function fetchUserTenantDomain(accessToken: string): Promise<string> {
   try {
     const response = await fetch(`${BASE_URL}/authen/v1/user_info`, {
       headers: { Authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     const data = await response.json() as {
       code: number;
@@ -99,6 +100,7 @@ async function fetchUserTenantDomain(accessToken: string): Promise<string> {
     // 嘗試取得任一文件來獲取實際 URL
     const driveResponse = await fetch(`${BASE_URL}/drive/v1/files?page_size=1`, {
       headers: { Authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     const driveData = await driveResponse.json() as {
       code: number;
@@ -131,6 +133,7 @@ async function getAppAccessToken(): Promise<string> {
       app_id: LARK_APP_ID,
       app_secret: LARK_APP_SECRET,
     }),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
 
   const appTokenData = await appTokenRes.json() as {
@@ -163,6 +166,7 @@ export async function exchangeCodeForToken(code: string): Promise<TokenData & { 
       grant_type: "authorization_code",
       code,
     }),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
 
   const data = await response.json() as {
@@ -214,6 +218,7 @@ async function refreshAccessToken(refreshToken: string): Promise<TokenData> {
       grant_type: "refresh_token",
       refresh_token: refreshToken,
     }),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
 
   const data = await response.json() as {
@@ -344,6 +349,8 @@ async function executeRequest<T>(
   if (body) {
     fetchOptions.body = JSON.stringify(body);
   }
+
+  fetchOptions.signal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
 
   const response = await fetch(url, fetchOptions);
   const text = await response.text();

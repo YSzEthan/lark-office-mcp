@@ -29,6 +29,10 @@ export const RETRY_MAX_ATTEMPTS = 3;
 export const RETRY_BASE_DELAY_MS = 1000;
 export const RETRY_MAX_DELAY_MS = 10000;
 
+// 單次 fetch 逾時（避免無回應時卡死 documentRateLimiter 的 promise chain，
+// 在 --http 常駐模式下這個佇列跨 session 共用，卡住會擋住所有人）
+export const REQUEST_TIMEOUT_MS = 30_000;
+
 // Token 檔案路徑
 export const TOKEN_FILE_NAME = ".lark-token.json";
 
