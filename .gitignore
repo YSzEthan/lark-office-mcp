@@ -16,3 +16,7 @@ package-lock.json
 
 # Logs
 *.log
+
+# Secrets (LARK_APP_ID / LARK_APP_SECRET for --http daemon restarts)
+.env
+.env.local
