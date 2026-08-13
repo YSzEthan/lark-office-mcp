@@ -29,8 +29,13 @@ let cachedToken: TokenData | null = null;
  * @param port callback server 實際使用的 port
  */
 export function getAuthorizationUrl(port: number = CALLBACK_PORT): string {
+  // 注意：這份清單決定 user_access_token 拿到哪些權限，且授權當下就凍結在
+  // refresh token 鏈裡。改動後所有人都要刪掉 ~/.lark-token.json 重新授權，
+  // 否則舊 token 沿用舊 scope（症狀：有人能寫、有人拿到 99991679）。
   const scopes = [
     "wiki:wiki",
+    "wiki:node:move",
+    "docx:document",
     "drive:drive",
     "bitable:app",
     "offline_access",

@@ -15,6 +15,7 @@ export enum LarkErrorCode {
   USER_TOKEN_INVALID = 99991664,
   TOKEN_EXPIRED = 99991665,
   RESOURCE_ACCESS_DENIED = 99991668,
+  SCOPE_NOT_GRANTED = 99991679,
 
   // 文件相關錯誤
   DOC_NOT_FOUND = 1770001,
@@ -65,6 +66,11 @@ const ERROR_INFO: Record<number, { description: string; suggestion: string }> = 
   [LarkErrorCode.RESOURCE_ACCESS_DENIED]: {
     description: "Resource access denied",
     suggestion: "Ensure you have permission to access this resource. Check sharing settings.",
+  },
+  [LarkErrorCode.SCOPE_NOT_GRANTED]: {
+    description: "User token lacks the scope this API requires",
+    suggestion:
+      "The scope missing from the token is named in the Message above. Enable it in the Lark developer console (Permission Management), add it to the scopes list in services/lark-client.ts, then delete ~/.lark-token.json and re-authorize. Existing tokens keep their old scopes — everyone must re-authorize.",
   },
   [LarkErrorCode.DOC_NOT_FOUND]: {
     description: "Document not found",

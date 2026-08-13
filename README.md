@@ -655,6 +655,7 @@ Callback port 由環境變數 `LARK_CALLBACK_PORT` 設定（必填），固定�
 
 - `wiki:wiki` - Wiki 讀寫
 - `wiki:node:move` - 移動 Wiki 節點
+- `docx:document` - 新版文檔讀寫（`doc_append` / `doc_update` 等寫入操作必需）
 - `drive:drive` - 雲端硬碟（含文件操作、搜尋）
 - `bitable:app` - 多維表格讀取（嵌入的 Sheet 表格）
 - `task:task:read` - 讀取待辦事項
