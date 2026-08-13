@@ -13,8 +13,9 @@ export const CALLBACK_TIMEOUT_MS = 120_000;
 // oauth-callback 會主動 kill 佔用 CALLBACK_PORT 的 process）
 export const HTTP_PORT = Number(process.env.LARK_MCP_PORT) || 3940;
 
-// 回應限制
-export const CHARACTER_LIMIT = 25000;
+// 回應限制。doc_read 沒有分頁參數，超過此長度的文件會被 response.ts 靜默截斷
+// 且只在尾端留一行標記，容易誤判成「文件到此為止」。讀長文件時用環境變數調高。
+export const CHARACTER_LIMIT = Number(process.env.LARK_MCP_CHARACTER_LIMIT) || 25000;
 export const MAX_PAGE_SIZE = 200;
 
 // 批次處理
