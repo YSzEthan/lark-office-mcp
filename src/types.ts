@@ -63,7 +63,7 @@ export interface LarkBlock {
   bullet?: LarkTextContent;
   ordered?: LarkTextContent;
   quote?: LarkTextContent;
-  todo?: LarkTextContent & { done?: boolean };
+  todo?: LarkTextContent & { style?: { done?: boolean } };
   // 特殊內容類型
   code?: LarkTextContent & { language?: number };
   equation?: LarkTextContent;

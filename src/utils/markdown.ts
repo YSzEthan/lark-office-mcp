@@ -198,7 +198,7 @@ export async function blocksToMarkdown(blocks: LarkBlock[]): Promise<string> {
         lines.push(`$$${extractText(block.equation)}$$`);
         break;
       case 17: // Todo
-        const checked = block.todo?.done ? "x" : " ";
+        const checked = block.todo?.style?.done ? "x" : " ";
         lines.push(`- [${checked}] ${extractText(block.todo)}`);
         break;
       case 19: // Callout（高亮塊）
